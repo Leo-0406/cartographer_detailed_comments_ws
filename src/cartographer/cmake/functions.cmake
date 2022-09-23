@@ -46,7 +46,7 @@ function(google_test NAME ARG_SRC)
 endfunction()
 
 # 生成可执行文件
-# 定义函数（函数名 参数）
+定义函数（函数名 参数）
 function(google_binary NAME)
   _parse_arguments("${ARGN}")           # 解析参数
                 #（可执行文件名字   相关的参数）
