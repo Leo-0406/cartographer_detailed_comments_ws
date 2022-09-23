@@ -18,7 +18,7 @@ macro(_parse_arguments ARGS)
   set(OPTIONS)
   set(ONE_VALUE_ARG)
   set(MULTI_VALUE_ARGS SRCS)
-  cmake_parse_arguments(ARG
+  cmake_parse_arguments(ARG  # 将传入的参数解析成 ARG_SRCS， ARG_SRCS -> node_main.cc
     "${OPTIONS}" "${ONE_VALUE_ARG}" "${MULTI_VALUE_ARGS}" ${ARGS})
 endmacro(_parse_arguments)
 
@@ -28,11 +28,12 @@ macro(_common_compile_stuff VISIBILITY)
   set_target_properties(${NAME} PROPERTIES
     COMPILE_FLAGS ${TARGET_COMPILE_FLAGS})
 
-  target_include_directories(${NAME} PUBLIC ${PROJECT_NAME})
+  # ${NAME}->node_main.cc可执行文件，依赖于${PROJECT_NAME}->cartographer_ros这个库
+  target_include_directories(${NAME} PUBLIC ${PROJECT_NAME})  
   target_link_libraries(${NAME} PUBLIC ${PROJECT_NAME})
 endmacro(_common_compile_stuff)
 
-function(google_test NAME ARG_SRC)
+function(google_test NAME ARG_SRC)  
   add_executable(${NAME} ${ARG_SRC})
   _common_compile_stuff("PRIVATE")
 
@@ -45,12 +46,14 @@ function(google_test NAME ARG_SRC)
 endfunction()
 
 # 生成可执行文件
+# 定义函数（函数名 参数）
 function(google_binary NAME)
-  _parse_arguments("${ARGN}")
+  _parse_arguments("${ARGN}")           # 解析参数
+                #（可执行文件名字   相关的参数）
+  add_executable(${NAME} ${ARG_SRCS}) # 添加可执行文件
+  # add_executable(${NAME}->cartographer_node ${ARG_SRCS}->node_main.cc)  
 
-  add_executable(${NAME} ${ARG_SRCS})
-
-  _common_compile_stuff("PRIVATE")
+  _common_compile_stuff("PRIVATE")  # 同样的，进行参数解析
 
   install(TARGETS "${NAME}" RUNTIME DESTINATION bin)
 endfunction()

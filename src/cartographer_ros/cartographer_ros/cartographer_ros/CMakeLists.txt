@@ -19,15 +19,19 @@ google_binary(cartographer_assets_writer
     ros_map_writing_points_processor.cc
 )
 
+# 安装到系统文件夹下
 install(TARGETS cartographer_assets_writer
+  # 静态库  目标地址     目标文件夹
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  # 动态库
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  # 可执行文件
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 # 生成建图节点
-google_binary(cartographer_node
-  SRCS
+google_binary(cartographer_node  # 可执行文件的名字
+  SRCS  # SRCS为后缀的文件，即是node_main.cc
     node_main.cc
 )
 

@@ -13,15 +13,15 @@
 -- limitations under the License.
 
 POSE_GRAPH = {
-  -- 每隔多少个节点执行一次后端优化
+  -- 每隔多少个节点执行一次后端优化, set to 0 ,can use to adjust Local Slam, namely adjust trajectory_builder_2d.lua
   optimize_every_n_nodes = 90,
 
   -- 约束构建的相关参数
   constraint_builder = {
     sampling_ratio = 0.3,                 -- 对局部子图进行回环检测时的计算频率, 数值越大, 计算次数越多
     max_constraint_distance = 15.,        -- 对局部子图进行回环检测时能成为约束的最大距离
-    min_score = 0.55,                     -- 对局部子图进行回环检测时的最低分数阈值
-    global_localization_min_score = 0.6,  -- 对整体子图进行回环检测时的最低分数阈值
+    min_score = 0.55,                     -- 对局部子图进行回环检测时的最低分数阈值,  same  traj
+    global_localization_min_score = 0.6,  -- 对整体子图进行回环检测时的最低分数阈值,  different traj
     loop_closure_translation_weight = 1.1e4,
     loop_closure_rotation_weight = 1e5,
     log_matches = true,                   -- 打印约束计算的log
@@ -30,7 +30,7 @@ POSE_GRAPH = {
     fast_correlative_scan_matcher = {
       linear_search_window = 7.,
       angular_search_window = math.rad(30.),
-      branch_and_bound_depth = 7,
+      branch_and_bound_depth = 7,         -- depth of the tree
     },
 
     -- 基于ceres的2d精匹配器
@@ -39,7 +39,7 @@ POSE_GRAPH = {
       translation_weight = 10.,
       rotation_weight = 1.,
       ceres_solver_options = {
-        use_nonmonotonic_steps = true,
+        use_nonmonotonic_steps = true,    -- allow local enlargement
         max_num_iterations = 10,
         num_threads = 1,
       },

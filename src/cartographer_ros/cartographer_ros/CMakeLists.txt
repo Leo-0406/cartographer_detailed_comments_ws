@@ -16,7 +16,7 @@ cmake_minimum_required(VERSION 2.8.12)  # Ships with Ubuntu 14.04 (Trusty)
 
 project(cartographer_ros)
 
-set(PACKAGE_DEPENDENCIES
+set(PACKAGE_DEPENDENCIES      # cartgrapher 依赖的库，定义变量，将这些库纳入
   cartographer_ros_msgs
   geometry_msgs
   message_runtime
@@ -43,11 +43,11 @@ endif()
 # PCL also finds Boost. Work around by moving before find_package(cartographer).
 find_package(Boost REQUIRED COMPONENTS system iostreams)
 find_package(PCL REQUIRED COMPONENTS common io)
-
+# 查找需要的安装包
 find_package(cartographer REQUIRED)
-include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
-option(BUILD_GRPC "build features that require Cartographer gRPC support" false)
-google_initialize_cartographer_project()
+include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake") #包含此路径下的functions.camake
+option(BUILD_GRPC "build features that require Cartographer gRPC support" false)  # gRPC远程使用，设置为false
+google_initialize_cartographer_project()  # 调用functions.cmake中的函数初始化cartographer_project
 # google_enable_testing()
 set(CARTOGRAPHER_GMOCK_LIBRARIES ${GMOCK_LIBRARIES})
 
@@ -77,8 +77,8 @@ set(GTEST_LIBRARIES ${CARTOGRAPHER_GMOCK_LIBRARIES})
 
 catkin_package(
   CATKIN_DEPENDS
-    ${PACKAGE_DEPENDENCIES}
-  DEPENDS
+    ${PACKAGE_DEPENDENCIES}         # ROS的依赖   通过 ${   }对变量进行取值
+  DEPENDS                           # 非ROS的依赖
     # TODO(damonkohler): This should be here but causes Catkin to abort because
     # protobuf specifies a library '-lpthread' instead of just 'pthread'.
     # CARTOGRAPHER
@@ -90,11 +90,12 @@ catkin_package(
   LIBRARIES ${PROJECT_NAME}
 )
 
+# GLOB_RECURSE循环迭代查文件夹下的  .cc  .h   文件
 file(GLOB_RECURSE ALL_SRCS "cartographer_ros/*.cc" "cartographer_ros/*.h")
 file(GLOB_RECURSE ALL_TESTS "cartographer_ros/*_test.cc")
 file(GLOB_RECURSE ALL_EXECUTABLES "cartographer_ros/*_main.cc")
 file(GLOB_RECURSE ALL_GRPC_FILES "cartographer_ros/cartographer_grpc/*")
-list(REMOVE_ITEM ALL_SRCS ${ALL_TESTS})
+list(REMOVE_ITEM ALL_SRCS ${ALL_TESTS})                   # 删除 test文件
 list(REMOVE_ITEM ALL_SRCS ${ALL_EXECUTABLES})
 if (NOT ${BUILD_GRPC})
   list(REMOVE_ITEM ALL_SRCS ${ALL_GRPC_FILES})
@@ -108,10 +109,10 @@ add_library(${PROJECT_NAME} STATIC ${ALL_SRCS})
 # 添加子目录,生成可执行文件
 add_subdirectory("cartographer_ros")
 
-# 连接到cartographer
+# ${PROJECT_NAME} -> cartographer_ros 连接到 cartographer
 target_link_libraries(${PROJECT_NAME} PUBLIC cartographer)
 
-# Lua
+# Lua  
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${LUA_INCLUDE_DIR})
 
 # PCL
@@ -127,7 +128,7 @@ foreach(DEFINITION ${PCL_DEFINITIONS})
   set(TARGET_COMPILE_FLAGS "${TARGET_COMPILE_FLAGS} ${DEFINITION}")
 endforeach()
 
-# Eigen
+# Eigen  包含Eigen3头文件
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
   "${EIGEN3_INCLUDE_DIR}")
 
