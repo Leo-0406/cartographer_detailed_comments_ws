@@ -53,64 +53,62 @@ DEFINE_string(
     "If non-empty, serialize state and write it to disk before shutting down.");
 
 namespace cartographer_ros {
-namespace {
+  namespace {
+    void Run() {
+      constexpr double kTfBufferCacheTimeInSeconds = 10.;
+      tf2_ros::Buffer tf_buffer{::ros::Duration(kTfBufferCacheTimeInSeconds)};
+      // 开启监听tf的独立线程
+      tf2_ros::TransformListener tf(tf_buffer);
 
-void Run() {
-  constexpr double kTfBufferCacheTimeInSeconds = 10.;
-  tf2_ros::Buffer tf_buffer{::ros::Duration(kTfBufferCacheTimeInSeconds)};
-  // 开启监听tf的独立线程
-  tf2_ros::TransformListener tf(tf_buffer);
+      NodeOptions node_options;
+      TrajectoryOptions trajectory_options;
 
-  NodeOptions node_options;
-  TrajectoryOptions trajectory_options;
+      // c++11: std::tie()函数可以将变量连接到一个给定的tuple上,生成一个元素类型全是引用的tuple
 
-  // c++11: std::tie()函数可以将变量连接到一个给定的tuple上,生成一个元素类型全是引用的tuple
+      // 根据Lua配置文件中的内容, 为node_options, trajectory_options 赋值
+      std::tie(node_options, trajectory_options) =
+          LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
 
-  // 根据Lua配置文件中的内容, 为node_options, trajectory_options 赋值
-  std::tie(node_options, trajectory_options) =
-      LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
+      // MapBuilder类是完整的SLAM算法类
+      // 包含前端(TrajectoryBuilders,scan to submap) 与 后端(用于查找回环的PoseGraph) 
+      auto map_builder =
+          cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
+      
+      // c++11: std::move 是将对象的状态或者所有权从一个对象转移到另一个对象, 
+      // 只是转移, 没有内存的搬迁或者内存拷贝所以可以提高利用效率,改善性能..
+      // 右值引用是用来支持转移语义的.转移语义可以将资源 ( 堆, 系统对象等 ) 从一个对象转移到另一个对象, 
+      // 这样能够减少不必要的临时对象的创建、拷贝以及销毁, 能够大幅度提高 C++ 应用程序的性能.
+      // 临时对象的维护 ( 创建和销毁 ) 对性能有严重影响.
 
-  // MapBuilder类是完整的SLAM算法类
-  // 包含前端(TrajectoryBuilders,scan to submap) 与 后端(用于查找回环的PoseGraph) 
-  auto map_builder =
-      cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
-  
-  // c++11: std::move 是将对象的状态或者所有权从一个对象转移到另一个对象, 
-  // 只是转移, 没有内存的搬迁或者内存拷贝所以可以提高利用效率,改善性能..
-  // 右值引用是用来支持转移语义的.转移语义可以将资源 ( 堆, 系统对象等 ) 从一个对象转移到另一个对象, 
-  // 这样能够减少不必要的临时对象的创建、拷贝以及销毁, 能够大幅度提高 C++ 应用程序的性能.
-  // 临时对象的维护 ( 创建和销毁 ) 对性能有严重影响.
+      // Node类的初始化, 将ROS的topic传入SLAM, 也就是MapBuilder
+      Node node(node_options, std::move(map_builder), &tf_buffer,
+                FLAGS_collect_metrics);
 
-  // Node类的初始化, 将ROS的topic传入SLAM, 也就是MapBuilder
-  Node node(node_options, std::move(map_builder), &tf_buffer,
-            FLAGS_collect_metrics);
+      // 如果加载了pbstream文件, 就执行这个函数
+      if (!FLAGS_load_state_filename.empty()) {
+        node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
+      }
 
-  // 如果加载了pbstream文件, 就执行这个函数
-  if (!FLAGS_load_state_filename.empty()) {
-    node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
-  }
+      // 使用默认topic 开始轨迹
+      if (FLAGS_start_trajectory_with_default_topics) {
+        node.StartTrajectoryWithDefaultTopics(trajectory_options);
+      }
 
-  // 使用默认topic 开始轨迹
-  if (FLAGS_start_trajectory_with_default_topics) {
-    node.StartTrajectoryWithDefaultTopics(trajectory_options);
-  }
+      ::ros::spin();
 
-  ::ros::spin();
+      // 结束所有处于活动状态的轨迹
+      node.FinishAllTrajectories();
 
-  // 结束所有处于活动状态的轨迹
-  node.FinishAllTrajectories();
+      // 当所有的轨迹结束时, 再执行一次全局优化
+      node.RunFinalOptimization();
 
-  // 当所有的轨迹结束时, 再执行一次全局优化
-  node.RunFinalOptimization();
-
-  // 如果save_state_filename非空, 就保存pbstream文件
-  if (!FLAGS_save_state_filename.empty()) {
-    node.SerializeState(FLAGS_save_state_filename,
-                        true /* include_unfinished_submaps */);
-  }
-}
-
-}  // namespace
+      // 如果save_state_filename非空, 就保存pbstream文件
+      if (!FLAGS_save_state_filename.empty()) {
+        node.SerializeState(FLAGS_save_state_filename,
+                            true /* include_unfinished_submaps */);
+      }
+    } // run 
+  }  // namespace
 }  // namespace cartographer_ros
 
 int main(int argc, char** argv) {
