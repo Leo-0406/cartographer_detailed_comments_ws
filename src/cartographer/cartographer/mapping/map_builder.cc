@@ -511,6 +511,7 @@ std::map<int, int> MapBuilder::LoadStateFromFile(
 
 // 工厂函数
 std::unique_ptr<MapBuilderInterface> CreateMapBuilder(
+  // 传入参数options为proto格式，返回指向MapBuilder类的unique_ptr类型的智能指针
     const proto::MapBuilderOptions& options) {
   return absl::make_unique<MapBuilder>(options);
 }

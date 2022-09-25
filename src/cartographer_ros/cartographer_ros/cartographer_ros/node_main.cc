@@ -55,11 +55,14 @@ DEFINE_string(
 namespace cartographer_ros {
   namespace {
     void Run() {
-      constexpr double kTfBufferCacheTimeInSeconds = 10.;
+      constexpr double kTfBufferCacheTimeInSeconds = 10.;  // 缓存时间 10s
+      // 定义 tf_buffer
       tf2_ros::Buffer tf_buffer{::ros::Duration(kTfBufferCacheTimeInSeconds)};
-      // 开启监听tf的独立线程
+      // 调用tf2_ros::TransformListener,传入tf_buffer，开启监听tf的独立线程
+      // TransformListener给tf_buffer提供一个标志，告知已经启动，tf_buffer可以读tf了
       tf2_ros::TransformListener tf(tf_buffer);
 
+      // 
       NodeOptions node_options;
       TrajectoryOptions trajectory_options;
 
@@ -71,7 +74,8 @@ namespace cartographer_ros {
 
       // MapBuilder类是完整的SLAM算法类
       // 包含前端(TrajectoryBuilders,scan to submap) 与 后端(用于查找回环的PoseGraph) 
-      auto map_builder =
+      // 使用auto时，变量必须初始化
+      auto map_builder =   //  
           cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
       
       // c++11: std::move 是将对象的状态或者所有权从一个对象转移到另一个对象, 
@@ -81,6 +85,9 @@ namespace cartographer_ros {
       // 临时对象的维护 ( 创建和销毁 ) 对性能有严重影响.
 
       // Node类的初始化, 将ROS的topic传入SLAM, 也就是MapBuilder
+      // 指针指向MapBuilder的权利，移动到指向node的第二个参数上
+      // Node类包含：cartographer_ros如何接传感器数据，怎么传入cartographer,
+      // 同时发布map,轨迹，约束，可视化等
       Node node(node_options, std::move(map_builder), &tf_buffer,
                 FLAGS_collect_metrics);
 
@@ -95,7 +102,7 @@ namespace cartographer_ros {
       }
 
       /*
-      * note:ros::spin()的理解
+      * note:ros::spin()的理解,单线程
       在程序到达ros::spin()之前按照一系列规则，设定一系列话题订阅者。
       这些订阅者就开始嗷嗷待哺，等待话题进来，但这时候订阅者的嘴还没有打开。
       然后就到ros::spin()，这可以理解为一个动作，打开订阅者的嘴。这样订阅者们可以开始接受话题，
