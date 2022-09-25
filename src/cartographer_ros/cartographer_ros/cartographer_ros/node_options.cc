@@ -18,12 +18,11 @@
 
 #include <vector>
 
-#include "cartographer/common/configuration_file_resolver.h"
+#include "cartographer/common/configuration_file_resolver.h"    // 文件解析函数头文件
 #include "cartographer/mapping/map_builder_interface.h"
 #include "glog/logging.h"
 
 namespace cartographer_ros {
-
 /**
  * @brief 读取lua文件内容, 将lua文件的内容赋值给NodeOptions
  * 
@@ -34,35 +33,36 @@ NodeOptions CreateNodeOptions(
     ::cartographer::common::LuaParameterDictionary* const
         lua_parameter_dictionary) {
           
-  NodeOptions options;
+    NodeOptions options;
 
-  // 根据lua字典中的参数, 生成protobuf的序列化数据结构 proto::MapBuilderOptions
-  options.map_builder_options =
-      ::cartographer::mapping::CreateMapBuilderOptions(
-          lua_parameter_dictionary->GetDictionary("map_builder").get());
+    // 根据lua字典中的参数, 生成protobuf的序列化数据结构 proto::MapBuilderOptions
+    options.map_builder_options =
+        ::cartographer::mapping::CreateMapBuilderOptions(
+            // lua_parameter_dictionary->GetDictionary获取map_builder的值，.get()在智能指针取值的时候用到
+            lua_parameter_dictionary->GetDictionary("map_builder").get());
 
-  options.map_frame = lua_parameter_dictionary->GetString("map_frame");
-  options.lookup_transform_timeout_sec =
-      lua_parameter_dictionary->GetDouble("lookup_transform_timeout_sec");
-  options.submap_publish_period_sec =
-      lua_parameter_dictionary->GetDouble("submap_publish_period_sec");
-  options.pose_publish_period_sec =
-      lua_parameter_dictionary->GetDouble("pose_publish_period_sec");
-  options.trajectory_publish_period_sec =
-      lua_parameter_dictionary->GetDouble("trajectory_publish_period_sec");
-  if (lua_parameter_dictionary->HasKey("publish_to_tf")) {
-    options.publish_to_tf =
-        lua_parameter_dictionary->GetBool("publish_to_tf");
-  }
-  if (lua_parameter_dictionary->HasKey("publish_tracked_pose")) {
-    options.publish_tracked_pose =
-        lua_parameter_dictionary->GetBool("publish_tracked_pose");
-  }
-  if (lua_parameter_dictionary->HasKey("use_pose_extrapolator")) {
-    options.use_pose_extrapolator =
-        lua_parameter_dictionary->GetBool("use_pose_extrapolator");
-  }
-  return options;
+    options.map_frame = lua_parameter_dictionary->GetString("map_frame");
+    options.lookup_transform_timeout_sec =
+        lua_parameter_dictionary->GetDouble("lookup_transform_timeout_sec");
+    options.submap_publish_period_sec =
+        lua_parameter_dictionary->GetDouble("submap_publish_period_sec");
+    options.pose_publish_period_sec =
+        lua_parameter_dictionary->GetDouble("pose_publish_period_sec");
+    options.trajectory_publish_period_sec =
+        lua_parameter_dictionary->GetDouble("trajectory_publish_period_sec");
+    if (lua_parameter_dictionary->HasKey("publish_to_tf")) {
+        options.publish_to_tf =
+            lua_parameter_dictionary->GetBool("publish_to_tf");
+    }
+    if (lua_parameter_dictionary->HasKey("publish_tracked_pose")) {
+        options.publish_tracked_pose =
+            lua_parameter_dictionary->GetBool("publish_tracked_pose");
+    }
+    if (lua_parameter_dictionary->HasKey("use_pose_extrapolator")) {
+        options.use_pose_extrapolator =
+            lua_parameter_dictionary->GetBool("use_pose_extrapolator");
+    }
+    return options;
 }
 
 /**
@@ -72,26 +72,26 @@ NodeOptions CreateNodeOptions(
  * @param[in] configuration_basename 配置文件的名字
  * @return std::tuple<NodeOptions, TrajectoryOptions> 返回节点的配置与轨迹的配置
  */
-std::tuple<NodeOptions, TrajectoryOptions> LoadOptions(
+std::tuple<NodeOptions, TrajectoryOptions> LoadOptions( 
     const std::string& configuration_directory,
     const std::string& configuration_basename) {
-  // 获取配置文件所在的目录
-  auto file_resolver =
-      absl::make_unique<cartographer::common::ConfigurationFileResolver>(
-          std::vector<std::string>{configuration_directory});
+    // 获取配置文件所在的目录
+    auto file_resolver =  // 生成的智能指针指向ConfigurationFileResolver这个类
+        absl::make_unique<cartographer::common::ConfigurationFileResolver>(
+            //  {configuration_directory}初始化string类型容器
+            std::vector<std::string>{configuration_directory});     
         
-  // 读取配置文件内容到code中
-  const std::string code =
-      file_resolver->GetFileContentOrDie(configuration_basename);
+    // 读取配置文件内容到code中
+    const std::string code = // 使用类中的方法将配置文件的内容读取到code中
+        file_resolver->GetFileContentOrDie(configuration_basename);
 
-  // 根据给定的字符串, 生成一个lua字典
-  cartographer::common::LuaParameterDictionary lua_parameter_dictionary(
-      code, std::move(file_resolver));
+    // 根据给定的字符串, 生成一个lua字典
+    cartographer::common::LuaParameterDictionary lua_parameter_dictionary(
+        code, std::move(file_resolver));
 
-  // 创建元组tuple,元组定义了一个有固定数目元素的容器, 其中的每个元素类型都可以不相同
-  // 将配置文件的内容填充进NodeOptions与TrajectoryOptions, 并返回
-  return std::make_tuple(CreateNodeOptions(&lua_parameter_dictionary),
-                         CreateTrajectoryOptions(&lua_parameter_dictionary));
-}
-
+    // 创建元组tuple,元组定义了一个有固定数目元素的容器, 其中的每个元素类型都可以不相同
+    // 将配置文件的内容填充进NodeOptions与TrajectoryOptions, 并返回
+    return std::make_tuple(CreateNodeOptions(&lua_parameter_dictionary),
+                            CreateTrajectoryOptions(&lua_parameter_dictionary));
+} // std::tuple<NodeOptions, TrajectoryOptions> LoadOptions
 }  // namespace cartographer_ros
