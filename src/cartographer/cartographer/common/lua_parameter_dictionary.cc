@@ -159,11 +159,14 @@ LuaParameterDictionary::NonReferenceCounted(
  * @brief Construct a new Lua Parameter Dictionary:: Lua Parameter Dictionary object
  * 
  * @param[in] code 配置文件内容
- * @param[in] file_resolver FileResolver类
- */
+ * @param[in] f
+ */ile_resolver FileResolver类
 LuaParameterDictionary::LuaParameterDictionary(
+    //  读取到的配置文件         file_resolver类指针
     const std::string& code, std::unique_ptr<FileResolver> file_resolver)
+    // LuaParameterDictionary类通过初始化列表进行构造
     : LuaParameterDictionary(code, ReferenceCount::YES,
+                            // 将类指针的所有权转移至LuaParaDict本身
                              std::move(file_resolver)) {}
 
 /**
@@ -185,7 +188,7 @@ LuaParameterDictionary::LuaParameterDictionary(
   SetDictionaryInRegistry(L_, this);
 
   luaL_openlibs(L_);
-
+          //    L_  lua的一种数据结构
   lua_register(L_, "choose", LuaChoose);
   // 将LuaInclude注册为Lua的全局函数变量,使得Lua可以调用C函数
   lua_register(L_, "include", LuaInclude);
@@ -446,7 +449,7 @@ int LuaParameterDictionary::GetNonNegativeInt(const std::string& key) {
 
 // Lua function to run a script in the current Lua context. Takes the filename
 // as its only argument.
-// 读取.lua文件中的所有 include 的文件
+// 读取.lua文件中的所有 include 的文件， 将其放入lua的L这种数据结构里
 int LuaParameterDictionary::LuaInclude(lua_State* L) {
   CHECK_EQ(lua_gettop(L), 1);
   CHECK(lua_isstring(L, -1)) << "include takes a filename.";
@@ -454,6 +457,8 @@ int LuaParameterDictionary::LuaInclude(lua_State* L) {
   LuaParameterDictionary* parameter_dictionary = GetDictionaryFromRegistry(L);
   const std::string basename = lua_tostring(L, -1);
   const std::string filename =
+                    // 调用函数对basename文件进行查找
+                    // 配置文件中通过include包含的"mapbuilder.lua"即为basename
       parameter_dictionary->file_resolver_->GetFullPathOrDie(basename);
   // 防止双重包含
   if (std::find(parameter_dictionary->included_files_.begin(),
@@ -473,7 +478,8 @@ int LuaParameterDictionary::LuaInclude(lua_State* L) {
   CHECK_EQ(lua_gettop(L), 0);
 
   // 判断了2次文件是否存在
-  const std::string content =
+  const std::string content =    
+  // GetFileContentOrDie()函数包含了GetFullPathOrDie()，因此读取.lua文件成功时会有两次输出
       parameter_dictionary->file_resolver_->GetFileContentOrDie(basename);
   CheckForLuaErrors(
       L, luaL_loadbuffer(L, content.c_str(), content.size(), filename.c_str()));

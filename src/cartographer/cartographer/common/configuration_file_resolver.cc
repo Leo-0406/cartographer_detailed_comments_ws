@@ -70,9 +70,10 @@ std::string ConfigurationFileResolver::GetFileContentOrDie(
 
   // 根据文件名查找是否在给定文件夹中存在
   const std::string filename = GetFullPathOrDie(basename);
+  // 通过ifstream   读取配置文件的内容
   std::ifstream stream(filename.c_str());
 
-  // 读取配置文件内容并返回
+  // 读取配置文件内容以string形式返回
   return std::string((std::istreambuf_iterator<char>(stream)),
                      std::istreambuf_iterator<char>());
 }

@@ -34,6 +34,7 @@ namespace common {
 class FileResolver {
  public:
   virtual ~FileResolver() {}
+  // virtual ... = 0 ，表示是纯虚函数,只是定义了函数名，传递参数，继承时对其进行重写
   virtual std::string GetFullPathOrDie(const std::string& basename) = 0;
   virtual std::string GetFileContentOrDie(const std::string& basename) = 0;
 };
