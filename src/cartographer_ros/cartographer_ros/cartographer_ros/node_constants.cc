@@ -30,15 +30,15 @@ namespace cartographer_ros {
  */
 std::vector<std::string> ComputeRepeatedTopicNames(const std::string& topic,
                                                    const int num_topics) {
-  CHECK_GE(num_topics, 0);
-  if (num_topics == 1) {
+  CHECK_GE(num_topics, 0);  // 检查topic数量是否大于0
+  if (num_topics == 1) {    // 只有1个topic就直接返回
     return {topic};
   }
   std::vector<std::string> topics;
   topics.reserve(num_topics);
   for (int i = 0; i < num_topics; ++i) {
     topics.emplace_back(topic + "_" + std::to_string(i + 1));
-  }
+  }// 如果topic为scan，多个topic,则表示为scan_1, scan_2;
   // num_topics要是0就返回空的vector
   return topics;
 }

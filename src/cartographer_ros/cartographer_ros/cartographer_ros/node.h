@@ -210,6 +210,7 @@ private:
                                 const double fixed_frame_pose_sampling_ratio,
                                 const double imu_sampling_ratio,
                                 const double landmark_sampling_ratio)
+            // 初始化参数
             : rangefinder_sampler(rangefinder_sampling_ratio),
             odometry_sampler(odometry_sampling_ratio),
             fixed_frame_pose_sampler(fixed_frame_pose_sampling_ratio),

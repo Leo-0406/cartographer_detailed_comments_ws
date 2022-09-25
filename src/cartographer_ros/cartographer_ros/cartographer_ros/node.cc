@@ -297,7 +297,7 @@ void Node::AddExtrapolator(const int trajectory_id,
   // 新生成的轨迹的id 不应该在extrapolators_中
   CHECK(extrapolators_.count(trajectory_id) == 0);
 
-  // imu_gravity_time_constant在2d, 3d中都是10
+  // imu_gravity_time_constant，重力时间常量在2d, 3d中都是10
   const double gravity_time_constant =
       node_options_.map_builder_options.use_trajectory_builder_3d()
           ? options.trajectory_builder_options.trajectory_builder_3d_options()
@@ -314,9 +314,11 @@ void Node::AddExtrapolator(const int trajectory_id,
   // https://www.cnblogs.com/guxuanqing/p/11396511.html
 
   // 以1ms, 以及重力常数10, 作为参数构造PoseExtrapolator
-  extrapolators_.emplace(
-      std::piecewise_construct, 
-      std::forward_as_tuple(trajectory_id),
+  extrapolators_.emplace(   
+  // PoseExtrapolator构造的时候需要传入2个参数，node中的extrapolators传入(int, PoseExtrapolator)
+  // 需要3个变量才能完成extrapolators的声明
+      std::piecewise_construct,     // 使用forward_as_tuple时需搭配使用，否则报错
+      std::forward_as_tuple(trajectory_id), // 打包成tuple，作为int
       std::forward_as_tuple(
           ::cartographer::common::FromSeconds(kExtrapolationEstimationTimeSec),
           gravity_time_constant));
@@ -328,6 +330,7 @@ void Node::AddExtrapolator(const int trajectory_id,
  * @param[in] trajectory_id 轨迹id
  * @param[in] options 参数配置
  */
+// 在common/fixed_ratio_sampler.h中构造
 void Node::AddSensorSamplers(const int trajectory_id,
                              const TrajectoryOptions& options) {
   CHECK(sensor_samplers_.count(trajectory_id) == 0);
@@ -337,7 +340,7 @@ void Node::AddSensorSamplers(const int trajectory_id,
       std::forward_as_tuple(
           options.rangefinder_sampling_ratio, 
           options.odometry_sampling_ratio,
-          options.fixed_frame_pose_sampling_ratio, 
+          options.fixed_frame_pose_sampling_ratio,  // GPS 采样器
           options.imu_sampling_ratio,
           options.landmarks_sampling_ratio));
 }
@@ -532,7 +535,7 @@ void Node::PublishConstraintList(
 std::set<cartographer::mapping::TrajectoryBuilderInterface::SensorId>
 Node::ComputeExpectedSensorIds(const TrajectoryOptions& options) const {
   /*
-    enum class SensorType {
+    enum class SensorType { 
       RANGE = 0,
       IMU,
       ODOMETRY,
@@ -556,6 +559,7 @@ Node::ComputeExpectedSensorIds(const TrajectoryOptions& options) const {
   // 如果是多个传感器, 那订阅的topic就是topic_1,topic_2, 依次类推
   for (const std::string& topic :
        ComputeRepeatedTopicNames(kLaserScanTopic, options.num_laser_scans)) {
+    // 放入到集合expected_topics中
     expected_topics.insert(SensorId{SensorType::RANGE, topic});
   }
   for (const std::string& topic : ComputeRepeatedTopicNames(
@@ -604,13 +608,14 @@ Node::ComputeExpectedSensorIds(const TrajectoryOptions& options) const {
 int Node::AddTrajectory(const TrajectoryOptions& options) {
 
   const std::set<cartographer::mapping::TrajectoryBuilderInterface::SensorId>
-      expected_sensor_ids = ComputeExpectedSensorIds(options);
+        // 获取传感器topic的名字
+        expected_sensor_ids = ComputeExpectedSensorIds(options);
 
   // 调用map_builder_bridge的AddTrajectory, 添加一个轨迹
   const int trajectory_id =
       map_builder_bridge_.AddTrajectory(expected_sensor_ids, options);
 
-  // 新增一个位姿估计器
+  // 新增一个位姿估计器，imu和odom的融合，作为前端匹配的先验
   AddExtrapolator(trajectory_id, options);
 
   // 新生成一个传感器数据采样器

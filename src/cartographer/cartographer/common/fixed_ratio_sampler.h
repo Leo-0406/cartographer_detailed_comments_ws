@@ -28,10 +28,10 @@ namespace common {
 // uniformly distributed fraction of the data.
 // 当应该从数据流中抽取样本以选择数据的均匀分布部分时发出信号
 class FixedRatioSampler {
- public:
+public:
   explicit FixedRatioSampler(double ratio);
   ~FixedRatioSampler();
-
+  // 禁止生成默认的赋值构造函数
   FixedRatioSampler(const FixedRatioSampler&) = delete;
   FixedRatioSampler& operator=(const FixedRatioSampler&) = delete;
 
