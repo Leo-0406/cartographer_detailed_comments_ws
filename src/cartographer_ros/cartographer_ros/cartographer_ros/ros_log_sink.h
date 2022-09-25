@@ -28,7 +28,8 @@ namespace cartographer_ros {
  * @brief 自定义的输出日志的方式: 使用ROS_INFO进行glog消息的输出
  */
 // 继承google::LogSink类
-  class ScopedRosLogSink : public ::google::LogSink {
+  class ScopedRosLogSink : public 
+   {
     public:
       ScopedRosLogSink();
       ~ScopedRosLogSink() override;

@@ -135,6 +135,7 @@ int main(int argc, char** argv) {
    * 检测expression如果不为真, 则打印后面的description和栈上的信息
    * 然后退出程序, 出错后的处理过程和FATAL比较像.
    */
+  // 通过定义的宏进行检查判断并输出信息
   CHECK(!FLAGS_configuration_directory.empty())
       << "-configuration_directory is missing.";
   CHECK(!FLAGS_configuration_basename.empty())

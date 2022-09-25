@@ -59,6 +59,7 @@ ScopedRosLogSink::~ScopedRosLogSink() { RemoveLogSink(this); }  // 解出注册
  * @param[in] message 消息数据本体
  * @param[in] message_len 消息长度
  */
+// 重载ScopedRosLogSink类的send()方法
 void ScopedRosLogSink::send(const ::google::LogSeverity severity,
                             const char* const filename,
                             const char* const base_filename, 
@@ -66,9 +67,10 @@ void ScopedRosLogSink::send(const ::google::LogSeverity severity,
                             const struct std::tm* const tm_time,
                             const char* const message,
                             const size_t message_len) {
+            // message_string 接收 google::LogSink::ToString()函数生成的消息
   const std::string message_string = ::google::LogSink::ToString(
       severity, GetBasename(filename), line, tm_time, message, message_len);
-  switch (severity) {
+  switch (severity) {   // 依据消息级别输出不同类型的消息
     case ::google::GLOG_INFO:
       ROS_INFO_STREAM(message_string);
       break;
