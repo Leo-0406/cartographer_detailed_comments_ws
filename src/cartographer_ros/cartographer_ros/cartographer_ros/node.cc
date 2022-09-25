@@ -147,9 +147,10 @@ Node::Node(
 
   // Step: 1 声明需要发布的topic
 
-  // 发布SubmapList
+  // 发布SubmapList,坐标、索引等信息，非真实的地图信息
   submap_list_publisher_ =
       node_handle_.advertise<::cartographer_ros_msgs::SubmapList>(
+        // 发布的topic名称    数据缓冲区大小
           kSubmapListTopic, kLatestOnlyPublisherQueueSize);
   // 发布轨迹
   trajectory_node_list_publisher_ =
@@ -163,7 +164,7 @@ Node::Node(
   constraint_list_publisher_ =
       node_handle_.advertise<::visualization_msgs::MarkerArray>(
           kConstraintListTopic, kLatestOnlyPublisherQueueSize);
-  // 发布tracked_pose, 默认不发布
+  // 发布tracked_pose, 默认不发布，node_options中已经设置为false
   if (node_options_.publish_tracked_pose) {
     tracked_pose_publisher_ =
         node_handle_.advertise<::geometry_msgs::PoseStamped>(
