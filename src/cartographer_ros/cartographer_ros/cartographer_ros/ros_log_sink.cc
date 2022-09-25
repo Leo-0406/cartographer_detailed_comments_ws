@@ -25,30 +25,28 @@
 #include "ros/console.h"
 
 namespace cartographer_ros {
-
 namespace {
-
 /**
  * @brief 根据给定的文件全路径名, 获取文件名
  * 
  * @param[in] filepath 
  * @return const char* 返回文件名
  */
-const char* GetBasename(const char* filepath) {
-  // 找到 '/' 最后一次在filepath中出现的位置
-  const char* base = std::strrchr(filepath, '/');
-  // 找到'/',就将'/'之后的字符串返回；找不到'/', 就将整个filepath返回
-  return base ? (base + 1) : filepath;
-}
-
+  const char* GetBasename(const char* filepath) {
+    // 找到 '/' 最后一次在filepath中出现的位置
+    const char* base = std::strrchr(filepath, '/');
+    // 找到'/',就将'/'之后的字符串返回；找不到'/', 就将整个filepath返回
+    return base ? (base + 1) : filepath;
+  } //  const char* GetBasename()
 }  // namespace
 
 
 /**
  * @brief 在构造函数中调用AddLogSink(), 将ScopedRosLogSink类注册到glog中
  */
+                                    // 初始化参数（false）   调用AddLogSink()函数
 ScopedRosLogSink::ScopedRosLogSink() : will_die_(false) { AddLogSink(this); }
-ScopedRosLogSink::~ScopedRosLogSink() { RemoveLogSink(this); }
+ScopedRosLogSink::~ScopedRosLogSink() { RemoveLogSink(this); }  // 解出注册
 
 /**
  * @brief 重载了send()方法, 使用ROS_INFO进行glog消息的输出
