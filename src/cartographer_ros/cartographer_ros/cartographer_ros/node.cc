@@ -147,7 +147,8 @@ std::string TrajectoryStateToString(const TrajectoryState trajectory_state) {
 Node::Node(
     const NodeOptions& node_options,
     std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
-    tf2_ros::Buffer* const tf_buffer, const bool collect_metrics)
+    tf2_ros::Buffer* const tf_buffer, 
+    const bool collect_metrics)
     : node_options_(node_options),
       map_builder_bridge_(node_options_, std::move(map_builder), tf_buffer) {
   // 将mutex_上锁, 防止在初始化时数据被更改
@@ -175,7 +176,7 @@ Node::Node(
       node_handle_.advertise<::visualization_msgs::MarkerArray>(
           kLandmarkPosesListTopic, kLatestOnlyPublisherQueueSize);
   // 发布约束
-  constraint_list_publisher_ =
+  constraint_list_publisher_ =          // rviz 中显示时使用
       node_handle_.advertise<::visualization_msgs::MarkerArray>(
           kConstraintListTopic, kLatestOnlyPublisherQueueSize);
   // 发布tracked_pose, 默认不发布，node_options中已经设置为false
@@ -295,6 +296,7 @@ bool Node::HandleTrajectoryQuery(
  */
 void Node::PublishSubmapList(const ::ros::WallTimerEvent& unused_timer_event) {
   absl::MutexLock lock(&mutex_);
+                  // 发布数据来源：通过map_builder_bridge_.GetSubmapList()获取
   submap_list_publisher_.publish(map_builder_bridge_.GetSubmapList());
 }
 
@@ -419,11 +421,12 @@ void Node::PublishLocalTrajectoryData(const ::ros::TimerEvent& timer_event) {
 
     // 使用较新的时间戳
     const ::cartographer::common::Time now = std::max(
+        // 当前的时间和位姿估计器时间的一个对比
         FromRos(ros::Time::now()), extrapolator.GetLastExtrapolatedTime());
     stamped_transform.header.stamp =
         node_options_.use_pose_extrapolator
-            ? ToRos(now)
-            : ToRos(trajectory_data.local_slam_data->time);
+            ? ToRos(now)// 位姿估计器
+            : ToRos(trajectory_data.local_slam_data->time);//前端,匹配出来的结果更准确，作为tf发布的选择
 
     // Suppress publishing if we already published a transform at this time.
     // Due to 2020-07 changes to geometry2, tf buffer will issue warnings for
@@ -442,23 +445,26 @@ void Node::PublishLocalTrajectoryData(const ::ros::TimerEvent& timer_event) {
             : trajectory_data.local_slam_data->local_pose;
     
     // 获取当前位姿在local坐标系下的坐标
-    const Rigid3d tracking_to_local = [&] {
-      // 是否将变换投影到平面上
+    const Rigid3d tracking_to_local = [&] {   // [&] 引用的方式使用tracking_to_local_3d的数据
+      // 是否将变换投影到平面上               { }为具体的函数实现，lambda表达式类似对函数进行声明，并未执行
       if (trajectory_data.trajectory_options.publish_frame_projected_to_2d) {
         return carto::transform::Embed3D(
             carto::transform::Project2D(tracking_to_local_3d));
       }
       return tracking_to_local_3d;
-    }();
+    }(); // ()是lambda表达式的函数调用，即对其进行执行，因为lambda表达式可作为函数
 
     // 求得当前位姿在map下的坐标
+    // tracking_to_local:tracking坐标系变换到local坐标系,local坐标系为cartographer自己定义的一个坐标系
+    // tracking_to_map:local坐标系变换到map坐标系，map坐标系为rviz显示的map的坐标系
     const Rigid3d tracking_to_map =
         trajectory_data.local_to_map * tracking_to_local;
 
     // 根据lua配置文件发布tf
+    // trajectory_data： local_slam的结果，是一个指针，为空的话，说明还没返回结果
     if (trajectory_data.published_to_tracking != nullptr) {
       if (node_options_.publish_to_tf) {
-        // 如果需要cartographer提供odom坐标系
+        // 如果需要cartographer提供odom坐标系   分为两种情况：1.发布odom；2.不发布odom
         // 则发布 map_frame -> odom -> published_frame 的tf
         if (trajectory_data.trajectory_options.provide_odom_frame) {
           std::vector<geometry_msgs::TransformStamped> stamped_transforms;
@@ -513,7 +519,7 @@ void Node::PublishLocalTrajectoryData(const ::ros::TimerEvent& timer_event) {
 // 每30e-3s发布一次轨迹路径点数据
 void Node::PublishTrajectoryNodeList(
     const ::ros::WallTimerEvent& unused_timer_event) {
-  // 只有存在订阅者的时候才发布轨迹
+  // 只有存在订阅者的时候才发布轨迹，节省资源
   if (trajectory_node_list_publisher_.getNumSubscribers() > 0) {
     absl::MutexLock lock(&mutex_);
     trajectory_node_list_publisher_.publish(
@@ -960,7 +966,7 @@ Node::ComputeDefaultSensorIdsForMultipleBags(
   }
   return bags_sensor_ids;
 }
-
+// 处理离线数据，直接使用bag文件的数据，速度比在线的更快
 int Node::AddOfflineTrajectory(
     const std::set<cartographer::mapping::TrajectoryBuilderInterface::SensorId>&
         expected_sensor_ids,
@@ -1098,10 +1104,12 @@ bool Node::HandleReadMetrics(
   return true;
 }
 
-// 结束所有处于活动状态的轨迹
+// 结束所有处于活动状态的轨迹，在node.main()中调用
 void Node::FinishAllTrajectories() {
-  absl::MutexLock lock(&mutex_);
+  absl::MutexLock lock(&mutex_); //上锁 
+                  // 轨迹有4种状态{ ACTIVE, FINISHED, FROZEN, DELETED }
   for (const auto& entry : map_builder_bridge_.GetTrajectoryStates()) {
+    // 遍历轨迹的状态，如果轨迹处于ACTIVE状态，就执行FinishTrajectoryUnderLock()函数，结束轨迹
     if (entry.second == TrajectoryState::ACTIVE) {
       const int trajectory_id = entry.first;
       CHECK_EQ(FinishTrajectoryUnderLock(trajectory_id).code,
@@ -1112,7 +1120,7 @@ void Node::FinishAllTrajectories() {
 
 // 结束指定id的轨迹
 bool Node::FinishTrajectory(const int trajectory_id) {
-  absl::MutexLock lock(&mutex_);
+  absl::MutexLock lock(&mutex_);// 先进行上锁，否则报错
   return FinishTrajectoryUnderLock(trajectory_id).code ==
          cartographer_ros_msgs::StatusCode::OK;
 }
@@ -1151,10 +1159,12 @@ void Node::HandleOdometryMessage(const int trajectory_id,
                                  const std::string& sensor_id,
                                  const nav_msgs::Odometry::ConstPtr& msg) {
   absl::MutexLock lock(&mutex_);
+  // 如果采样器未处于暂停状态，该数据就不处理
   if (!sensor_samplers_.at(trajectory_id).odometry_sampler.Pulse()) {
     return;
   }
   auto sensor_bridge_ptr = map_builder_bridge_.sensor_bridge(trajectory_id);
+  // 将里程计数据类型转换为odometry_data_ptr
   auto odometry_data_ptr = sensor_bridge_ptr->ToOdometryData(msg);
   // extrapolators_使用里程计数据进行位姿预测
   if (odometry_data_ptr != nullptr) {
