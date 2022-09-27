@@ -1279,12 +1279,13 @@ void Node::MaybeWarnAboutTopicMismatch(
   // 获取ros中的实际topic的全局名称,resolveName()是获取全局名称
   for (const auto& it : ros_topics) {
     std::string resolved_topic = node_handle_.resolveName(it.name, false);
+    // 通过resolveName()获取的全局名称放入到published_topics集合中去
     published_topics.insert(resolved_topic);
     published_topics_string << resolved_topic << ",";
   }
 
   bool print_topics = false;
-  for (const auto& entry : subscribers_) {
+  for (const auto& entry : subscribers_) {  // subscribers_是unordered_map<int, vector<...>>数据类型
     int trajectory_id = entry.first;
     for (const auto& subscriber : entry.second) {
 
@@ -1292,6 +1293,7 @@ void Node::MaybeWarnAboutTopicMismatch(
       std::string resolved_topic = node_handle_.resolveName(subscriber.topic);
 
       // 如果设置的topic名字,在ros中不存在,则报错
+      // 通过published_topics.count()函数统计获取到的topic数量，等于0说明没找到topic
       if (published_topics.count(resolved_topic) == 0) {
         LOG(WARNING) << "Expected topic \"" << subscriber.topic
                      << "\" (trajectory " << trajectory_id << ")"
