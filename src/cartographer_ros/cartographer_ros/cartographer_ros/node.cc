@@ -89,21 +89,19 @@ namespace {
  */
 template <typename MessageType>
 ::ros::Subscriber SubscribeWithHandler(
-  // 返回值类型  函数名     函数参数
+  // 返回值类型   函数名     函数参数
     void (Node::*handler)(int, const std::string&, const typename MessageType::ConstPtr&),
     const int trajectory_id, 
     const std::string& topic,
-    ::ros::NodeHandle* const node_handle, Node* const node) {
-
+    ::ros::NodeHandle* const node_handle, 
+    Node* const node) {
+    //  MessageType  --->   sensor_msgs::LaserScan
     // SubscribeWithHandler<sensor_msgs::LaserScan>(     //处理单线雷达数据，传入了5个参数
           // &Node::HandleLaserScanMessage,  // 传入HandleLaserScanMessage函数的地址，函数指针
           // trajectory_id, 
           // topic, 
           // &node_handle_, 
           // this)
-
-
-
 
   return node_handle->subscribe<MessageType>(
       topic, kInfiniteSubscriberQueueSize,  // kInfiniteSubscriberQueueSize = 0
@@ -656,7 +654,12 @@ int Node::AddTrajectory(const TrajectoryOptions& options) {
 
 /**
  * @brief 订阅话题与注册回调函数
- * 
+ * 回调函数：通过指针调用的函数，主要是用作函数与函数之间的解藕。
+ * 使用回调函数，和普通函数调用区别：
+  1）在主入口程序中，把回调函数像参数一样传入库函数。这样一来，只要我们改变传进库函数的参数，
+    就可以实现不同的功能，且不需要修改库函数的实现，变的很灵活，这就是解耦。
+  2）主函数和回调函数是在同一层的，而库函数在另外一层。如果库函数对我们不可见，我们修改不了库函数的实现，
+    也就是说不能通过修改库函数让库函数调用普通函数那样实现，那我们就只能通过传入不同的回调函数了，
  * @param[in] options 配置参数
  * @param[in] trajectory_id 轨迹id  
  */
