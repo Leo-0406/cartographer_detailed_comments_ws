@@ -89,17 +89,33 @@ namespace {
  */
 template <typename MessageType>
 ::ros::Subscriber SubscribeWithHandler(
-    void (Node::*handler)(int, const std::string&,
-                          const typename MessageType::ConstPtr&),
-    const int trajectory_id, const std::string& topic,
+  // 返回值类型  函数名     函数参数
+    void (Node::*handler)(int, const std::string&, const typename MessageType::ConstPtr&),
+    const int trajectory_id, 
+    const std::string& topic,
     ::ros::NodeHandle* const node_handle, Node* const node) {
+
+    // SubscribeWithHandler<sensor_msgs::LaserScan>(     //处理单线雷达数据，传入了5个参数
+          // &Node::HandleLaserScanMessage,  // 传入HandleLaserScanMessage函数的地址，函数指针
+          // trajectory_id, 
+          // topic, 
+          // &node_handle_, 
+          // this)
+
+
+
 
   return node_handle->subscribe<MessageType>(
       topic, kInfiniteSubscriberQueueSize,  // kInfiniteSubscriberQueueSize = 0
       // 使用boost::function构造回调函数,被subscribe注册
-      boost::function<void(const typename MessageType::ConstPtr&)>(
-          // c++11: lambda表达式
+
+      // ConstPtr&只接收1个参数，实际传入3个参数，通过lambda表达式进行转换，再传入ConstPtr&中
+      boost::function<void(const typename MessageType::ConstPtr&)> (
+          // c++11: lambda表达式，是一个函数，通过（）对函数进行调用
+          // [  ]里面放的是函数参数对象，此处采用的是值传递，还可以地址传递&
+          // (  )里面放的是函数参数
           [node, handler, trajectory_id, topic](const typename MessageType::ConstPtr& msg) {
+          // （ ）1表示对里面的函数指针进行调用，（）2表示传入的参数
             (node->*handler)(trajectory_id, topic, msg);
           }));
 }
@@ -648,12 +664,19 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
                              const int trajectory_id) {
   // laser_scan 的订阅与注册回调函数, 多个laser_scan 的topic 共用同一个回调函数
   for (const std::string& topic :
-       ComputeRepeatedTopicNames(kLaserScanTopic, options.num_laser_scans)) {
+        // 遍历所有话题
+        ComputeRepeatedTopicNames(kLaserScanTopic, options.num_laser_scans)) {
     subscribers_[trajectory_id].push_back(
+    //subscribers_定义为unordered_map<int, std::vector<Subscriber>> subscribers_  
         {SubscribeWithHandler<sensor_msgs::LaserScan>(
-             &Node::HandleLaserScanMessage, trajectory_id, topic, &node_handle_,
-             this),
-         topic});
+          // 处理单线雷达数据
+          &Node::HandleLaserScanMessage, trajectory_id, topic, &node_handle_, this),
+          topic}
+    );// 将SubscribeWithHandler<sensor_msgs::LaserScan>的返回结果和
+      // topic一起传入到subscribers_[trajectory_id]中
+      // unordered_map<int, std::vector<Subscriber>> subscribers_
+      // unordered_map的int: trajectory_id, 
+      // std::vector<Subscriber>为{  }里面共同push_back的结果
   }
 
   // multi_echo_laser_scans的订阅与注册回调函数
