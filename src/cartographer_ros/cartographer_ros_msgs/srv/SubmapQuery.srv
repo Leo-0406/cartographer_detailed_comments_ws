@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-int32 trajectory_id
-int32 submap_index
+int32 trajectory_id  # request
+int32 submap_index   # request
 ---
-cartographer_ros_msgs/StatusResponse status
+cartographer_ros_msgs/StatusResponse status     # response
 int32 submap_version
 cartographer_ros_msgs/SubmapTexture[] textures

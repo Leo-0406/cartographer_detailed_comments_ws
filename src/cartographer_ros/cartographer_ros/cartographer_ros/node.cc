@@ -254,8 +254,8 @@ Node::~Node() { FinishAllTrajectories(); }
  * @return true: ROS的service只能返回true, 返回false程序会中断
  */
 bool Node::HandleSubmapQuery(
-    ::cartographer_ros_msgs::SubmapQuery::Request& request,
-    ::cartographer_ros_msgs::SubmapQuery::Response& response) {
+    ::cartographer_ros_msgs::SubmapQuery::Request& request,       // 接收一个request
+    ::cartographer_ros_msgs::SubmapQuery::Response& response) {   // 返回一个response
   absl::MutexLock lock(&mutex_);
   map_builder_bridge_.HandleSubmapQuery(request, response);
   return true;
