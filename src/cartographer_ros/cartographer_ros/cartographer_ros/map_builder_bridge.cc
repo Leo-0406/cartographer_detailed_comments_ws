@@ -43,7 +43,7 @@ constexpr double kConstraintMarkerScale = 0.025;
   return result;
 }
 
-// 轨迹的Marker的声明与初始化
+// 轨迹的Marker的声明与初始化，在rviz显示中使用
 visualization_msgs::Marker CreateTrajectoryMarker(const int trajectory_id,
                                                   const std::string& frame_id) {
   visualization_msgs::Marker marker;
@@ -105,18 +105,18 @@ void PushAndResetLineMarker(visualization_msgs::Marker* marker,
  * @brief 根据传入的node_options, MapBuilder, 以及tf_buffer 完成三个本地变量的初始化
  * 
  * @param[in] node_options 参数配置
- * @param[in] map_builder 在node_main.cc中传入的MapBuilder
+ * @param[in] map_builder 在node_main.cc中新建，---> node.cc --->  MapBuilderBridge
  * @param[in] tf_buffer tf_buffer
  */
-MapBuilderBridge::MapBuilderBridge(
+MapBuilderBridge::MapBuilderBridge( // MapBuilederBridge()函数的构造
     const NodeOptions& node_options,
-    std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
+    std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,  // mapbuilder 构建地图的类
     tf2_ros::Buffer* const tf_buffer)
     : node_options_(node_options),
       map_builder_(std::move(map_builder)),
       tf_buffer_(tf_buffer) {}
 
-// 加载pbstream文件
+// 加载pbstream文件  LoadState在node.cc中构造
 void MapBuilderBridge::LoadState(const std::string& state_filename,
                                  bool load_frozen_state) {
   // Check if suffix of the state file is ".pbstream".
@@ -128,7 +128,7 @@ void MapBuilderBridge::LoadState(const std::string& state_filename,
       << "The file containing the state to be loaded must be a "
          ".pbstream file.";
   LOG(INFO) << "Loading saved state '" << state_filename << "'...";
-  // 加载文件内容
+  // 加载文件内容，并对数据进行校验
   cartographer::io::ProtoStreamReader stream(state_filename);
   // 解析数据
   map_builder_->LoadState(&stream, load_frozen_state);
@@ -159,7 +159,7 @@ int MapBuilderBridge::AddTrajectory(
   CHECK_EQ(sensor_bridges_.count(trajectory_id), 0);
   // Step: 2 为这个新轨迹 添加一个SensorBridge
   sensor_bridges_[trajectory_id] = absl::make_unique<SensorBridge>(
-      trajectory_options.num_subdivisions_per_laser_scan,
+      trajectory_options.num_subdivisions_per_laser_scan, //一个雷达数据被拆分成几次发出
       trajectory_options.tracking_frame,
       node_options_.lookup_transform_timeout_sec, 
       tf_buffer_,
@@ -179,6 +179,7 @@ void MapBuilderBridge::FinishTrajectory(const int trajectory_id) {
   // Make sure there is a trajectory with 'trajectory_id'.
   CHECK(GetTrajectoryStates().count(trajectory_id));
   map_builder_->FinishTrajectory(trajectory_id);
+  // sensor_bridges_起到对传感器数据进行传递的作用
   sensor_bridges_.erase(trajectory_id);
 }
 
@@ -288,7 +289,7 @@ MapBuilderBridge::GetLocalTrajectoryData() {
       }
       // 读取local_slam_data_要上锁
       local_slam_data = local_slam_data_.at(trajectory_id);
-    }
+    } // 此处{ }的作用是限定上锁的范围
 
     // Make sure there is a trajectory with 'trajectory_id'.
     CHECK_EQ(trajectory_options_.count(trajectory_id), 1);
@@ -296,8 +297,10 @@ MapBuilderBridge::GetLocalTrajectoryData() {
     // 填充LocalTrajectoryData
     local_trajectory_data[trajectory_id] = {
         local_slam_data,
-
+        
+        // note: 此处还需进行细致理解
         // local frame 到 global frame间的坐标变换
+        // 前端的常量坐标通过坐标变换，后端优化后的结果能够实时传递回前端，达到实时更新，此处的后端优化滞后于前端匹配
         map_builder_->pose_graph()->GetLocalToGlobalTransform(trajectory_id),
 
         // published_frame 到 tracking_frame 间的坐标变换
@@ -316,17 +319,19 @@ void MapBuilderBridge::HandleTrajectoryQuery(
     cartographer_ros_msgs::TrajectoryQuery::Response& response) {
   // This query is safe if the trajectory doesn't exist (returns 0 poses).
   // However, we can filter unwanted states at the higher level in the node.
+  // 获取所有轨迹节点的位姿
   const auto node_poses = map_builder_->pose_graph()->GetTrajectoryNodePoses();
   for (const auto& node_id_data :
        node_poses.trajectory(request.trajectory_id)) {
     if (!node_id_data.data.constant_pose_data.has_value()) {
       continue;
     }
-    geometry_msgs::PoseStamped pose_stamped;
+    geometry_msgs::PoseStamped pose_stamped; // 时间戳
     pose_stamped.header.frame_id = node_options_.map_frame;
     pose_stamped.header.stamp =
         ToRos(node_id_data.data.constant_pose_data.value().time);
-    // 使用的是global坐标系下的坐标
+    // 使用的是global坐标系下的坐标          
+    //  global_pose在trajectory_node.h中定义，获取的是优化后的位姿,然后进行格式转换
     pose_stamped.pose = ToGeometryMsgPose(node_id_data.data.global_pose);
     response.trajectory.push_back(pose_stamped);
   }
@@ -654,6 +659,7 @@ visualization_msgs::MarkerArray MapBuilderBridge::GetConstraintList() {
 
 // 获取对应轨迹id的SensorBridge的指针
 SensorBridge* MapBuilderBridge::sensor_bridge(const int trajectory_id) {
+  // sensor_bridges_为unordered_map<int, unique_ptr>类型，通过.get()获取智能指针的原始指针进行返回
   return sensor_bridges_.at(trajectory_id).get();
 }
 
@@ -675,6 +681,7 @@ void MapBuilderBridge::OnLocalSlamResult(
                                              std::move(range_data_in_local)});
   // 保存结果数据
   absl::MutexLock lock(&mutex_);
+  // 一个轨迹id只保存一个结果，优化后的新结果会对之前的结果进行覆盖，只会保存最新结果
   local_slam_data_[trajectory_id] = std::move(local_slam_data);
 }
 
