@@ -39,7 +39,8 @@ bool ReadSizeAsLittleEndian(std::istream* in, uint64* size) {
   *size = 0;
   for (int i = 0; i != 8; ++i) {
     *size >>= 8;                  // 右移8位
-    *size += static_cast<uint64>(in->get()) << 56;
+      // 通过in->get()取一个字符，左右56位，再加上size  
+    *size += static_cast<uint64>(in->get()) << 56;  
   }
   return !in->fail();
 }
