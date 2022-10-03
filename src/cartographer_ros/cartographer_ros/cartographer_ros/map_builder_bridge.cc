@@ -417,7 +417,7 @@ visualization_msgs::MarkerArray MapBuilderBridge::GetTrajectoryNodeList() {
       last_inter_trajectory_constrained_node =
           last_inter_submap_constrained_node;
     }
-
+    // 透明度
     marker.color.a = 1.0;
     
     // 遍历所有节点

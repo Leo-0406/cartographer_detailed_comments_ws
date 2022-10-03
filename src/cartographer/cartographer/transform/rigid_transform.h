@@ -133,12 +133,14 @@ class Rigid3 {
   using Quaternion = Eigen::Quaternion<FloatType>;
   using AngleAxis = Eigen::AngleAxis<FloatType>;
 
+  // 默认构造函数,因为构造时未传入参数 
   Rigid3() : translation_(Vector::Zero()), rotation_(Quaternion::Identity()) {}
+  // 传入平移和旋转，并且对其进行赋值
   Rigid3(const Vector& translation, const Quaternion& rotation)
       : translation_(translation), rotation_(rotation) {}
   Rigid3(const Vector& translation, const AngleAxis& rotation)
       : translation_(translation), rotation_(rotation) {}
-
+  // 静态成员函数，即使没有类的对象，也可以完成调用，不能修改非静态成员变量
   static Rigid3 Rotation(const AngleAxis& angle_axis) {
     return Rigid3(Vector::Zero(), Quaternion(angle_axis));
   }
@@ -172,8 +174,8 @@ class Rigid3 {
   // T = [R t] T^-1 = [R^-1  -R^-1 * t]
   //     [0 1]        [0         1    ] 
   // R是旋转矩阵, 特殊正交群, 所以R^-1 = R^T
-  Rigid3 inverse() const {
-    const Quaternion rotation = rotation_.conjugate();
+  Rigid3 inverse() const { // 通过inverse()求逆
+    const Quaternion rotation = rotation_.conjugate();// conjugate(）共轭，转置
     const Vector translation = -(rotation * translation_);
     return Rigid3(translation, rotation);
   }
@@ -212,7 +214,7 @@ template <typename FloatType>
 typename Rigid3<FloatType>::Vector operator*(
     const Rigid3<FloatType>& rigid,
     const typename Rigid3<FloatType>::Vector& point) {
-  return rigid.rotation() * point + rigid.translation();
+  return rigid.rotation() * point + rigid.translation(); // 对点进行平移旋转变换
 }
 
 // This is needed for gmock.
