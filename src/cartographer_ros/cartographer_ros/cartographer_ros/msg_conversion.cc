@@ -120,7 +120,7 @@ sensor_msgs::PointCloud2 PreparePointCloud2Message(const int64_t timestamp,
   msg.point_step = 16;
   msg.row_step = 16 * msg.width;
   msg.is_dense = true;
-  msg.data.resize(16 * num_points);
+  msg.data.resize(16 * num_points); // 对数组大小进行重置，1个点的信息由16位进行描述
   return msg;
 }
 
@@ -143,6 +143,7 @@ float GetFirstEcho(const sensor_msgs::LaserEcho& echo) {
 // 将LaserScan与MultiEchoLaserScan转成carto格式的点云数据
 template <typename LaserMessageType>
 std::tuple<PointCloudWithIntensities, ::cartographer::common::Time>
+                                          // 接收传入的不同类型的数据
 LaserScanToPointCloudWithIntensities(const LaserMessageType& msg) {
   CHECK_GE(msg.range_min, 0.f);
   CHECK_GE(msg.range_max, msg.range_min);
@@ -151,18 +152,18 @@ LaserScanToPointCloudWithIntensities(const LaserMessageType& msg) {
   } else {
     CHECK_GT(msg.angle_min, msg.angle_max);
   }
-
+  // PointCloudWithIntensities实际存储的是一堆点(vector)和强度(vector)组成的集合
   PointCloudWithIntensities point_cloud;
   float angle = msg.angle_min;
   for (size_t i = 0; i < msg.ranges.size(); ++i) {
-    // c++11: 使用auto可以适应不同的数据类型
-    const auto& echoes = msg.ranges[i];
+    // c++11: 使用auto可以适应不同的数据类型，自动推断获取的数据类型
+    const auto& echoes = msg.ranges[i];  // float32[]   laserecho两种类型的数据
+      // HasEcho重载函数
     if (HasEcho(echoes)) {
-
-      const float first_echo = GetFirstEcho(echoes);
-      // 满足范围才进行使用
+      const float first_echo = GetFirstEcho(echoes); //GetFirstEcho重载函数 
+      // 满足范围才进行使用   first_echo：距离
       if (msg.range_min <= first_echo && first_echo <= msg.range_max) {
-        const Eigen::AngleAxisf rotation(angle, Eigen::Vector3f::UnitZ());
+        const Eigen::AngleAxisf rotation(angle, Eigen::Vector3f::UnitZ());// 绕Z轴的旋转
         const cartographer::sensor::TimedRangefinderPoint point{
             rotation * (first_echo * Eigen::Vector3f::UnitX()), // position
             i * msg.time_increment};                            // time
@@ -176,7 +177,7 @@ LaserScanToPointCloudWithIntensities(const LaserMessageType& msg) {
           const auto& echo_intensities = msg.intensities[i];
           CHECK(HasEcho(echo_intensities));
           point_cloud.intensities.push_back(GetFirstEcho(echo_intensities));
-        } else {
+        } else {            //  没用强度时赋0
           point_cloud.intensities.push_back(0.f);
         }
       }
@@ -192,7 +193,7 @@ LaserScanToPointCloudWithIntensities(const LaserMessageType& msg) {
 
     // 让点云的时间变成相对值, 最后一个点的时间为0
     for (auto& point : point_cloud.points) {
-      point.time -= duration;
+      point.time -= duration; // 最后一个点的时间变为0
     }
   }
   return std::make_tuple(point_cloud, timestamp);
@@ -219,13 +220,13 @@ bool PointCloud2HasField(const sensor_msgs::PointCloud2& pc2,
  * @param[in] point_cloud 地图坐标系下的点云数据
  * @return sensor_msgs::PointCloud2 ROS格式的点云数据
  */
-sensor_msgs::PointCloud2 ToPointCloud2Message(
+sensor_msgs::PointCloud2 ToPointCloud2Message( // 在node.cc中发布点云时会进行调用
     const int64_t timestamp, const std::string& frame_id,
     const ::cartographer::sensor::TimedPointCloud& point_cloud) {
   // 点云格式的设置与数组的初始化
   auto msg = PreparePointCloud2Message(timestamp, frame_id, point_cloud.size());
 
-  // note: 通过ros::serialization将msg放进内存中
+  // note: 通过ros::serialization将msg放进内存中， catro数据是二进制格式，不能直接存入，通过OStream方式进行存储
   ::ros::serialization::OStream stream(msg.data.data(), msg.data.size());
   for (const cartographer::sensor::TimedRangefinderPoint& point : point_cloud) {
     // 通过使用next()函数,将点的坐标 序列化 到stream输出流, 将point存入msg
@@ -241,6 +242,7 @@ sensor_msgs::PointCloud2 ToPointCloud2Message(
 std::tuple<::cartographer::sensor::PointCloudWithIntensities,
            ::cartographer::common::Time>
 ToPointCloudWithIntensities(const sensor_msgs::LaserScan& msg) {
+  // LaserScanToPointCloudWithIntensities采用模板函数对输入的不同类型的数据进行处理
   return LaserScanToPointCloudWithIntensities(msg);
 }
 
@@ -304,6 +306,7 @@ ToPointCloudWithIntensities(const sensor_msgs::PointCloud2& msg) {
     } 
     // 没强度字段, 没时间字段
     else {
+      // pcl 格式的点云
       pcl::PointCloud<pcl::PointXYZ> pcl_point_cloud;
       pcl::fromROSMsg(msg, pcl_point_cloud);
       point_cloud.points.reserve(pcl_point_cloud.size());
@@ -444,9 +447,9 @@ cartographer::transform::Rigid3d ComputeLocalFrameFromLatLong(
   const Eigen::Vector3d translation = LatLongAltToEcef(latitude, longitude, 0.);
   const Eigen::Quaterniond rotation =
       Eigen::AngleAxisd(cartographer::common::DegToRad(latitude - 90.),
-                        Eigen::Vector3d::UnitY()) *
+                        Eigen::Vector3d::UnitY()) *  // 绕Y轴的旋转
       Eigen::AngleAxisd(cartographer::common::DegToRad(-longitude),
-                        Eigen::Vector3d::UnitZ());
+                        Eigen::Vector3d::UnitZ());   // 绕Z轴的旋转
   return cartographer::transform::Rigid3d(rotation * -translation, rotation);
 }
 

@@ -56,7 +56,7 @@ SensorBridge::SensorBridge(
     carto::mapping::TrajectoryBuilderInterface* const trajectory_builder)
     : num_subdivisions_per_laser_scan_(num_subdivisions_per_laser_scan),
       tf_bridge_(tracking_frame, lookup_transform_timeout_sec, tf_buffer),
-      trajectory_builder_(trajectory_builder) {}
+      trajectory_builder_(trajectory_builder) {}   // trajectory_builder --> map_builder_bridge第166行，// CollatedTrajectoryBuilder
 
 // 将ros格式的里程计数据 转成tracking frame的pose, 再转成carto的里程计数据类型
 std::unique_ptr<carto::sensor::OdometryData> SensorBridge::ToOdometryData(
@@ -64,7 +64,8 @@ std::unique_ptr<carto::sensor::OdometryData> SensorBridge::ToOdometryData(
   const carto::common::Time time = FromRos(msg->header.stamp);
   // 找到 tracking坐标系 到 里程计的child_frame_id 的坐标变换, 所以下方要对sensor_to_tracking取逆
   const auto sensor_to_tracking = tf_bridge_.LookupToTracking(
-      time, CheckNoLeadingSlash(msg->child_frame_id));
+      // CheckNoLeadingSlash检查frame_id是否带有斜线  /
+      time, CheckNoLeadingSlash(msg->child_frame_id));  // 里程计msg->child_frame_id一般指base_link，或者foot_print
   if (sensor_to_tracking == nullptr) {
     return nullptr;
   }
@@ -72,16 +73,16 @@ std::unique_ptr<carto::sensor::OdometryData> SensorBridge::ToOdometryData(
   // 将里程计的footprint的pose转成tracking_frame的pose, 再转成carto的里程计数据类型
   return absl::make_unique<carto::sensor::OdometryData>(
       carto::sensor::OdometryData{
-              // ToRigid3d实现三维刚体的坐标变换
+              // ToRigid3d实现三维刚体的坐标变换   IMU -> foot_print  取逆
           time, ToRigid3d(msg->pose.pose) * sensor_to_tracking->inverse()});
-}
+}       // msg->pose.pose是foot_print在里程计坐标系下面的坐标，* 在 rigid_transform中进行了重载
+        // 最终实现将foot_print在里程计坐标系下面的坐标，转成IMU_link在里程计下的坐标
 
 // 调用trajectory_builder_的AddSensorData进行数据的处理
 void SensorBridge::HandleOdometryMessage(
     const std::string& sensor_id, const nav_msgs::Odometry::ConstPtr& msg) {
-  // 数据类型与数据坐标系的转换
-  std::unique_ptr<carto::sensor::OdometryData> odometry_data =
-      ToOdometryData(msg);
+  // 数据类型与数据坐标系的转换，ros格式的数据转换成carto格式的数据
+  std::unique_ptr<carto::sensor::OdometryData> odometry_data = ToOdometryData(msg);
   if (odometry_data != nullptr) {
     // tag: 这个trajectory_builder_是谁, 讲map_builder时候再揭晓
     trajectory_builder_->AddSensorData(
@@ -91,20 +92,20 @@ void SensorBridge::HandleOdometryMessage(
 }
 
 // 将ros格式的gps数据转换成相对坐标系下的坐标,再调用trajectory_builder_的AddSensorData进行数据的处理
-void SensorBridge::HandleNavSatFixMessage(
+void SensorBridge::HandleNavSatFixMessage(  // HandleNavSatFixMessage处理gps的数据
     const std::string& sensor_id, const sensor_msgs::NavSatFix::ConstPtr& msg) {
   const carto::common::Time time = FromRos(msg->header.stamp);
-  // 如果不是固定解,就加入一个固定的空位姿
+  // 如果不是固定解,就加入一个固定的空位姿，status为0 1 2 3 4 5， >>>此处对GPS数据应有更多情况的考虑
   if (msg->status.status == sensor_msgs::NavSatStatus::STATUS_NO_FIX) {
     trajectory_builder_->AddSensorData(
-        sensor_id,
+        sensor_id,                       // gps数据不好的时候传入空数据optional<Rigid3d>()
         carto::sensor::FixedFramePoseData{time, absl::optional<Rigid3d>()});
     return;
   }
 
-  // 确定ecef原点到局部坐标系的坐标变换
-  if (!ecef_to_local_frame_.has_value()) {
-    ecef_to_local_frame_ =
+  // 确定ecef原点到局部坐标系的坐标变换，初始化话的时候是没有值传递进来的
+  if (!ecef_to_local_frame_.has_value()) { // 通过计算后，后续有值传递进来，就不再执行该函数了
+    ecef_to_local_frame_ =  //确定第一帧的数据指向ecef远点的坐标变换
         ComputeLocalFrameFromLatLong(msg->latitude, msg->longitude);
     LOG(INFO) << "Using NavSatFix. Setting ecef_to_local_frame with lat = "
               << msg->latitude << ", long = " << msg->longitude << ".";
@@ -145,7 +146,7 @@ void SensorBridge::HandleLandmarkMessage(
 // 进行数据类型转换与坐标系的转换
 std::unique_ptr<carto::sensor::ImuData> SensorBridge::ToImuData(
     const sensor_msgs::Imu::ConstPtr& msg) {
-  // 检查是否存在线性加速度与角速度
+  // 检查是否存在线性加速度与角速度.-1表示没数据，报错
   CHECK_NE(msg->linear_acceleration_covariance[0], -1)
       << "Your IMU data claims to not contain linear acceleration measurements "
          "by setting linear_acceleration_covariance[0] to -1. Cartographer "
@@ -164,7 +165,7 @@ std::unique_ptr<carto::sensor::ImuData> SensorBridge::ToImuData(
     return nullptr;
   }
   // 推荐将imu的坐标系当做tracking frame
-  CHECK(sensor_to_tracking->translation().norm() < 1e-5)
+  CHECK(sensor_to_tracking->translation().norm() < 1e-5)  // IMU频率高，计算量大，雷达频率低
       << "The IMU frame must be colocated with the tracking frame. "
          "Transforming linear acceleration into the tracking frame will "
          "otherwise be imprecise.";
@@ -219,21 +220,22 @@ const TfBridge& SensorBridge::tf_bridge() const { return tf_bridge_; }
 
 // 根据参数配置,将一帧雷达数据分成几段, 再传入trajectory_builder_
 void SensorBridge::HandleLaserScan(
-    const std::string& sensor_id, const carto::common::Time time,
+    const std::string& sensor_id, const carto::common::Time time, // 点云的时间，即最后一个点的时间：timestamp
     const std::string& frame_id,
     const carto::sensor::PointCloudWithIntensities& points) {
   if (points.points.empty()) {
     return;
   }
-  // CHECK_LE: 小于等于
+  // CHECK_LE: 小于等于,若时间不小于0,则报错
   CHECK_LE(points.points.back().time, 0.f);
   // TODO(gaschler): Use per-point time instead of subdivisions.
 
   // 意为一帧雷达数据被分成几次处理, 一般将这个参数设置为1
+  // num_subdivisions_per_laser_scan_为1的时候，start_index和end_index为点云
   for (int i = 0; i != num_subdivisions_per_laser_scan_; ++i) {
-    const size_t start_index =
+    const size_t start_index = // 假设size = 100,  start_index = 0
         points.points.size() * i / num_subdivisions_per_laser_scan_;
-    const size_t end_index =
+    const size_t end_index = //  100 * （0 + 1） /  1 =  100
         points.points.size() * (i + 1) / num_subdivisions_per_laser_scan_;
     
     // 生成分段的点云
@@ -242,13 +244,15 @@ void SensorBridge::HandleLaserScan(
     if (start_index == end_index) {
       continue;
     }
-    const double time_to_subdivision_end = subdivision.back().time;
+    const double time_to_subdivision_end = subdivision.back().time;// 获取最后一个点的时间
     // `subdivision_time` is the end of the measurement so sensor::Collator will
     // send all other sensor data first.
     const carto::common::Time subdivision_time =
         time + carto::common::FromSeconds(time_to_subdivision_end);
-    
+
+    // sensor_to_previous_subdivision_time ---> map<string, time>
     auto it = sensor_to_previous_subdivision_time_.find(sensor_id);
+    // 上一段点云的时间和当前点云时间的一个比较   雷神雷达会报这个错误，是由于其时间戳为降序排列
     if (it != sensor_to_previous_subdivision_time_.end() &&
         // 上一段点云的时间不应该大于等于这一段点云的时间
         it->second >= subdivision_time) {

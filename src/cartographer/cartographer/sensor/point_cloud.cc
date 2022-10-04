@@ -86,6 +86,7 @@ TimedPointCloud TransformTimedPointCloud(const TimedPointCloud& point_cloud,
   TimedPointCloud result;
   result.reserve(point_cloud.size());
   for (const TimedRangefinderPoint& point : point_cloud) {
+    // transform * point将point转换成tracking_frame坐标系下的点
     result.push_back(transform * point);
   }
   return result;
