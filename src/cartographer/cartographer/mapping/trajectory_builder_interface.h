@@ -57,7 +57,7 @@ class LocalSlamResultData;
  */
 class TrajectoryBuilderInterface {
  public:
-  struct InsertionResult {
+  struct InsertionResult {   // 存放的是指向submap的指针，保存了地图的具体数据，也就是栅格值
     NodeId node_id;
     std::shared_ptr<const TrajectoryNode::Data> constant_data;
     std::vector<std::shared_ptr<const Submap>> insertion_submaps;
@@ -73,7 +73,7 @@ class TrajectoryBuilderInterface {
   // A callback which is called after local SLAM processes an accumulated
   // 'sensor::RangeData'. If the data was inserted into a submap, reports the
   // assigned 'NodeId', otherwise 'nullptr' if the data was filtered out.
-  using LocalSlamResultCallback =
+  using LocalSlamResultCallback =  // 使用别名，原始名为可调用对象function<返回值为void>( 参数列表)
       std::function<void(int /* trajectory ID */, common::Time,
                          transform::Rigid3d /* local pose estimate */,
                          sensor::RangeData /* in local frame */,
@@ -81,6 +81,7 @@ class TrajectoryBuilderInterface {
 
   struct SensorId {
     // c++11: 限域枚举 enum class 
+    // 强类型，是真的数据类型  需要SensorType：：RANGE才能访问
     enum class SensorType {
       RANGE = 0,
       IMU,

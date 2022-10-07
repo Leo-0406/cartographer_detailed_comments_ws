@@ -116,7 +116,7 @@ void ThreadPool::DoWork() {
         task = std::move(task_queue_.front());
         task_queue_.pop_front();
       } else if (!running_) {
-        return;
+        return; // 队列为空，running为false 跳出for(; ; )死循环
       }
     }
     CHECK(task);

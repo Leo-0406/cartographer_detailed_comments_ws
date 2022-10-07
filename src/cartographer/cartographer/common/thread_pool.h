@@ -33,16 +33,16 @@ namespace common {
 class Task;
 
 class ThreadPoolInterface {
- public:
+public:
   ThreadPoolInterface() {}
   virtual ~ThreadPoolInterface() {}
   virtual std::weak_ptr<Task> Schedule(std::unique_ptr<Task> task) = 0;
 
- protected:
+protected:
   void Execute(Task* task);
   void SetThreadPool(Task* task);
 
- private:
+private:
   // 声明 Task 为友元类,Task类的所有成员函数就都可以访问ThreadPoolInterface类的对象的私有成员.
   friend class Task;
 
@@ -62,7 +62,7 @@ class ThreadPoolInterface {
 
 
 class ThreadPool : public ThreadPoolInterface {
- public:
+public:
   explicit ThreadPool(int num_threads);
   ~ThreadPool();
 
@@ -75,7 +75,7 @@ class ThreadPool : public ThreadPoolInterface {
   std::weak_ptr<Task> Schedule(std::unique_ptr<Task> task)
       LOCKS_EXCLUDED(mutex_) override;
 
- private:
+private:
   void DoWork();
 
   void NotifyDependenciesCompleted(Task* task) LOCKS_EXCLUDED(mutex_) override;

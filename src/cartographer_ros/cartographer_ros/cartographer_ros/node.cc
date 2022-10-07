@@ -146,10 +146,13 @@ std::string TrajectoryStateToString(const TrajectoryState trajectory_state) {
  */
 Node::Node(
     const NodeOptions& node_options,
+    // MapBuilderInterface为map_builder的基类  
+    // 通过std::move()函数将作为左值的map_buider转换为右值， 作为形参传入，形参就变成了左值      
     std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
     tf2_ros::Buffer* const tf_buffer, 
     const bool collect_metrics)
     : node_options_(node_options),
+    // 通过std::move()函数将作为左值的map_buider转换为右值，作为参数传入， map_builder始终是一个
       map_builder_bridge_(node_options_, std::move(map_builder), tf_buffer) {
   // 将mutex_上锁, 防止在初始化时数据被更改
   absl::MutexLock lock(&mutex_);

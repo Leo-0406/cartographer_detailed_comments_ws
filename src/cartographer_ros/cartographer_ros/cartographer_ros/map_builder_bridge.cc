@@ -157,6 +157,7 @@ int MapBuilderBridge::AddTrajectory(
 
   // Make sure there is no trajectory with 'trajectory_id' yet.
   CHECK_EQ(sensor_bridges_.count(trajectory_id), 0);
+  
   // Step: 2 为这个新轨迹 添加一个SensorBridge
   sensor_bridges_[trajectory_id] = absl::make_unique<SensorBridge>(
       trajectory_options.num_subdivisions_per_laser_scan, //一个雷达数据被拆分成几次发出

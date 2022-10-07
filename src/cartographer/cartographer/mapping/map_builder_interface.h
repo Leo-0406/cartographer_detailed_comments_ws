@@ -48,7 +48,7 @@ public:
 
     MapBuilderInterface() {}
     virtual ~MapBuilderInterface() {}
-
+    // = delete， 禁止编译器自动生成
     MapBuilderInterface(const MapBuilderInterface&) = delete;
     MapBuilderInterface& operator=(const MapBuilderInterface&) = delete;
 

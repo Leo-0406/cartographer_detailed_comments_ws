@@ -71,7 +71,7 @@ void MaybeAddPureLocalizationTrimmer(
   }
   if (trajectory_options.has_pure_localization_trimmer()) {
     pose_graph->AddTrimmer(absl::make_unique<PureLocalizationTrimmer>(
-        trajectory_id,
+        trajectory_id,    //max_submaps_to_keep()在config->trajectory_builder.lua文件中进行配置
         trajectory_options.pure_localization_trimmer().max_submaps_to_keep()));
   }
 }
@@ -84,12 +84,17 @@ void MaybeAddPureLocalizationTrimmer(
  * @param[in] options proto::MapBuilderOptions格式的 map_builder参数
  */
 MapBuilder::MapBuilder(const proto::MapBuilderOptions& options)
-    : options_(options), thread_pool_(options.num_background_threads()) { // param: num_background_threads
-  CHECK(options.use_trajectory_builder_2d() ^
-        options.use_trajectory_builder_3d());
+  // 参数以options的形式（pbstream  protobuf格式的一种数据结构）、
+                         // 初始化线程池，数量为4
+    : options_(options), thread_pool_(options.num_background_threads()) { 
+  // param: num_background_threads, 在map_builder.lua文件中进行设置
 
-  // 2d位姿图(后端)的初始化
+  CHECK(options.use_trajectory_builder_2d() ^
+        options.use_trajectory_builder_3d());  // 异或
+
+  // 2d位姿图(后端)的初始化，在node_main.cc中mapbuilder.cc的后端就已经完成构建
   if (options.use_trajectory_builder_2d()) {
+            // 初始化指向PoseGraph2D的一个指针
     pose_graph_ = absl::make_unique<PoseGraph2D>(
         options_.pose_graph_options(),
         absl::make_unique<optimization::OptimizationProblem2D>(
@@ -107,7 +112,7 @@ MapBuilder::MapBuilder(const proto::MapBuilderOptions& options)
 
   // 在 cartographer/configuration_files/map_builder.lua 中设置
   // param: MAP_BUILDER.collate_by_trajectory 默认为false
-  if (options.collate_by_trajectory()) {
+  if (options.collate_by_trajectory()) { // false  执行else
     sensor_collator_ = absl::make_unique<sensor::TrajectoryCollator>();
   } else {
     // sensor_collator_初始化, 实际使用这个
@@ -124,13 +129,22 @@ MapBuilder::MapBuilder(const proto::MapBuilderOptions& options)
  *        实际上是map_builder_bridge.cc 中的 OnLocalSlamResult() 函数
  * @return int 新生成的轨迹的id
  */
+// 添加一条轨迹的路径，函数跳转
+// node_main.cc中node.StartTrajectoryWithDefaultTopics(trajectory_options)  --->
+// node.cc中StartTrajectoryWithDefaultTopics --->  AddTrajectory(options)  --->  
+// node.cc中的 AddTrajectory类中的调用：map_builder_bridge_.AddTrajectory( ) --->
+// map_builder_bridge.cc中MapBuilderBridge::AddTrajectory调用：map_builder_->AddTrajectoryBuilder  --->
+// map_builder.cc中 AddTrajectoryBuilder
+
 int MapBuilder::AddTrajectoryBuilder(
+    // SensorId为map_builder_interface.h中通过using起的别名，全名为：TrajectoryBuilderInterface::SensorId;
     const std::set<SensorId>& expected_sensor_ids,
     const proto::TrajectoryBuilderOptions& trajectory_options,
+    // 需要传入的回调函数 实际上是map_builder_bridge.cc 中的 OnLocalSlamResult() 函数
     LocalSlamResultCallback local_slam_result_callback) {
 
   // id是从零开始的, 所以新trajectory_id就是trajectory_builders_的size()
-  const int trajectory_id = trajectory_builders_.size();
+  const int trajectory_id = trajectory_builders_.size(); // vector初始size为0
 
   // 运动过滤器, 运动太小没必要进行更新
   // 配置文件中没有 pose_graph_odometry_motion_filte
@@ -153,7 +167,7 @@ int MapBuilder::AddTrajectoryBuilder(
     // local_trajectory_builder(前端)的初始化
     std::unique_ptr<LocalTrajectoryBuilder3D> local_trajectory_builder;
     if (trajectory_options.has_trajectory_builder_3d_options()) {
-      local_trajectory_builder = absl::make_unique<LocalTrajectoryBuilder3D>(
+      local_trajectory_builder = absl::make_unique<LocalTrajectoryBuilder3D>( // 初始化
           trajectory_options.trajectory_builder_3d_options(),
           SelectRangeSensorIds(expected_sensor_ids));
     } 
@@ -177,14 +191,19 @@ int MapBuilder::AddTrajectoryBuilder(
      */
     DCHECK(dynamic_cast<PoseGraph3D*>(pose_graph_.get()));
 
+    // trajectory_builders_容器中存放的是智能指针，智能指针指向的类型是mapping::TrajectoryBuilderInterface>
+    // TrajectoryBuilderInterface的数据类型为CollatedTrajectoryBuilder
     trajectory_builders_.push_back(absl::make_unique<CollatedTrajectoryBuilder>(
-        trajectory_options, sensor_collator_.get(), trajectory_id,
+        trajectory_options, 
+        sensor_collator_.get(), trajectory_id,
         expected_sensor_ids,
         // 将3D前端与3D位姿图打包在一起, 传入CollatedTrajectoryBuilder
         CreateGlobalTrajectoryBuilder3D(
-            std::move(local_trajectory_builder), trajectory_id,
+            std::move(local_trajectory_builder), 
+            trajectory_id,
             static_cast<PoseGraph3D*>(pose_graph_.get()),
-            local_slam_result_callback, pose_graph_odometry_motion_filter)));
+            local_slam_result_callback, 
+            pose_graph_odometry_motion_filter)));
   } 
   // 2d的轨迹
   else {
@@ -205,6 +224,7 @@ int MapBuilder::AddTrajectoryBuilder(
         // 将2D前端与2D位姿图打包在一起, 传入CollatedTrajectoryBuilder
         CreateGlobalTrajectoryBuilder2D(
             std::move(local_trajectory_builder), trajectory_id,
+            // 将pose_graph_.get()数据类型转换为PoseGraph2D*
             static_cast<PoseGraph2D*>(pose_graph_.get()),
             local_slam_result_callback, pose_graph_odometry_motion_filter)));
   }
@@ -215,7 +235,7 @@ int MapBuilder::AddTrajectoryBuilder(
 
   // 如果给了初始位姿
   if (trajectory_options.has_initial_trajectory_pose()) {
-    const auto& initial_trajectory_pose =
+    const auto& initial_trajectory_pose =  // 获取初始位姿
         trajectory_options.initial_trajectory_pose();
     
     // 在位姿图中设置初始位姿
