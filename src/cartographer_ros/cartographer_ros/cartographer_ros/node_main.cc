@@ -70,14 +70,14 @@ namespace cartographer_ros {
       // c++11: std::tie()函数可以将变量连接到一个给定的tuple上,生成一个元素类型全是引用的tuple
 
       // 根据Lua配置文件中的内容, 为node_options, trajectory_options 赋值
-      std::tie(node_options, trajectory_options) = 
+      std::tie(node_options, trajectory_options) =  // 接收加载的配置文件参数，元祖类型
           // LoadOptions返回的是一个元祖，包含节点参数信息，轨迹参数信息
           LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
 
       // MapBuilder类是完整的SLAM算法类
       // 包含前端(TrajectoryBuilders,scan to submap) 与 后端(用于查找回环的PoseGraph) 
       // 使用auto时，变量必须初始化
-      auto map_builder =   //  
+      auto map_builder =            //  传入map_builder_options中的参数，创建地图构建器
           cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
       
       // c++11: std::move 是将对象的状态或者所有权从一个对象转移到另一个对象, 
