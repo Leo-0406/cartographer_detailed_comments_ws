@@ -32,7 +32,7 @@ namespace common {
 // Resolves file paths and file content for the Lua 'read' and 'include'
 // functions. Use this to configure where those functions load other files from.
 class FileResolver {
- public:
+public:
   virtual ~FileResolver() {}
   // virtual ... = 0 ，表示是纯虚函数,只是定义了函数名，传递参数，继承时对其进行重写
   virtual std::string GetFullPathOrDie(const std::string& basename) = 0;
@@ -41,7 +41,7 @@ class FileResolver {
 
 // A parameter dictionary that gets loaded from Lua code.
 class LuaParameterDictionary {
- public:
+public:
   // Constructs the dictionary from a Lua Table specification.
   LuaParameterDictionary(const std::string& code,
                          std::unique_ptr<FileResolver> file_resolver);
@@ -80,7 +80,7 @@ class LuaParameterDictionary {
   std::vector<std::unique_ptr<LuaParameterDictionary>>
   GetArrayValuesAsDictionaries();
 
- private:
+private:
   enum class ReferenceCount { YES, NO };
   LuaParameterDictionary(const std::string& code,
                          ReferenceCount reference_count,

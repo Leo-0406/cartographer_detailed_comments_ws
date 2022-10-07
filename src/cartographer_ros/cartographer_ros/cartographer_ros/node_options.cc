@@ -13,11 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include "cartographer_ros/node_options.h"
-
 #include <vector>
-
+#include "cartographer_ros/node_options.h"
 #include "cartographer/common/configuration_file_resolver.h"    // 文件解析函数头文件
 #include "cartographer/mapping/map_builder_interface.h"
 #include "glog/logging.h"
@@ -40,26 +37,31 @@ NodeOptions CreateNodeOptions(
         ::cartographer::mapping::CreateMapBuilderOptions(
             // lua_parameter_dictionary->GetDictionary获取map_builder的值，.get()在智能指针取值的时候用到
             lua_parameter_dictionary->GetDictionary("map_builder").get());
-
+    // map_frame:地图坐标系的名字
     options.map_frame = lua_parameter_dictionary->GetString("map_frame");
-    options.lookup_transform_timeout_sec =
+
+    options.lookup_transform_timeout_sec =  // 查找tf时的超时时间  0.2
         lua_parameter_dictionary->GetDouble("lookup_transform_timeout_sec");
-    options.submap_publish_period_sec =
+
+    options.submap_publish_period_sec =     // 发布数据的时间间隔  0.3
         lua_parameter_dictionary->GetDouble("submap_publish_period_sec");
-    options.pose_publish_period_sec =
+
+    options.pose_publish_period_sec =       // 发布pose的时间  5e-3
         lua_parameter_dictionary->GetDouble("pose_publish_period_sec");
-    options.trajectory_publish_period_sec =
+
+    options.trajectory_publish_period_sec = // 发布轨迹的时间   30e-3
         lua_parameter_dictionary->GetDouble("trajectory_publish_period_sec");
+
     if (lua_parameter_dictionary->HasKey("publish_to_tf")) {
-        options.publish_to_tf =
+        options.publish_to_tf =         // 是否发布tf  true
             lua_parameter_dictionary->GetBool("publish_to_tf");
     }
     if (lua_parameter_dictionary->HasKey("publish_tracked_pose")) {
-        options.publish_tracked_pose =
+        options.publish_tracked_pose =   // 是否发布跟踪的位姿  false
             lua_parameter_dictionary->GetBool("publish_tracked_pose");
     }
     if (lua_parameter_dictionary->HasKey("use_pose_extrapolator")) {
-        options.use_pose_extrapolator =
+        options.use_pose_extrapolator =  // 是否使用位姿推测器  true
             lua_parameter_dictionary->GetBool("use_pose_extrapolator");
     }
     return options;

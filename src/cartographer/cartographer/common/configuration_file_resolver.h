@@ -32,16 +32,16 @@ namespace common {
 // reasonable configuration for the various Cartographer components which
 // provide a good starting ground for new platforms.
 class ConfigurationFileResolver : public FileResolver {
- public:
+public:
 
   // c++11: explicit关键字 的作用就是防止类构造函数的隐式自动转换，防止数据类型变化
   explicit ConfigurationFileResolver(
       const std::vector<std::string>& configuration_files_directories);
-
-  std::string GetFullPathOrDie(const std::string& basename) override;
+    // 使用override关键字对构造的函数进行标记，对基类FileResolver中的函数进行覆盖
+  std::string GetFullPathOrDie(const std::string& basename) override; 
   std::string GetFileContentOrDie(const std::string& basename) override;
 
- private:
+private:
   std::vector<std::string> configuration_files_directories_;
 };
 

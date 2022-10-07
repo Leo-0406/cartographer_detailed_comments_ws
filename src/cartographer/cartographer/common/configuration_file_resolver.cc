@@ -43,8 +43,7 @@ ConfigurationFileResolver::ConfigurationFileResolver(
  * @param[in] basename 给定配置文件的名字
  * @return std::string 如果搜索成功, 返回配置文件的全路径名
  */
-std::string ConfigurationFileResolver::GetFullPathOrDie(
-    const std::string& basename) {
+std::string ConfigurationFileResolver::GetFullPathOrDie(const std::string& basename) {
   for (const auto& path : configuration_files_directories_) {
     const std::string filename = path + "/" + basename;
     std::ifstream stream(filename.c_str());

@@ -35,13 +35,13 @@ namespace cartographer_ros {
     double pose_publish_period_sec;         // 发布pose的时间
     double trajectory_publish_period_sec;   // 发布轨迹的时间
     bool publish_to_tf = true;              // 是否发布tf
-    bool publish_tracked_pose = false;      // 是否发布跟踪的姿
+    bool publish_tracked_pose = false;      // 是否发布跟踪的位姿
     bool use_pose_extrapolator = true;      // 是否使用位姿推测器
   };
-
-  NodeOptions CreateNodeOptions(
+  // 创建节点参数，在node_options.cc中实现
+  NodeOptions CreateNodeOptions(  // 传入lua_parameter_dictionary的指针
       ::cartographer::common::LuaParameterDictionary* lua_parameter_dictionary);
-
+  // 加载参数，在node_options.cc中实现
   std::tuple<NodeOptions, TrajectoryOptions> LoadOptions(
       const std::string& configuration_directory,
       const std::string& configuration_basename);

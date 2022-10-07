@@ -26,7 +26,7 @@
  * note: gflags是一套命令行参数解析工具
  * DEFINE_bool在gflags.h中定义
  * gflags主要支持的参数类型包括bool, int32, int64, uint64, double, string等
- * 定义参数通过DEFINE_type宏实现, 该宏的三个参数含义分别为命令行参数名, 参数默认值, 以及参数的帮助信息
+ * 定义参数通过DEFINE_type宏实现, 该宏的三个参数含义分别为 命令行参数名, 参数默认值, 以及参数的帮助信息
  * 当参数被定义后, 通过FLAGS_name就可访问到对应的参数
  */
 // collect_metrics ：激活运行时度量的集合.如果激活, 可以通过ROS服务访问度量
@@ -62,14 +62,16 @@ namespace cartographer_ros {
       // TransformListener给tf_buffer提供一个标志，告知已经启动，tf_buffer可以读tf了
       tf2_ros::TransformListener tf(tf_buffer);
 
-      // 
+      // 在node_options.h中构建，此处创建节点参数对象
       NodeOptions node_options;
+      // 在node_options.h中构建，此处创建轨迹参数对象
       TrajectoryOptions trajectory_options;
 
       // c++11: std::tie()函数可以将变量连接到一个给定的tuple上,生成一个元素类型全是引用的tuple
 
       // 根据Lua配置文件中的内容, 为node_options, trajectory_options 赋值
-      std::tie(node_options, trajectory_options) =
+      std::tie(node_options, trajectory_options) = 
+          // LoadOptions返回的是一个元祖，包含节点参数信息，轨迹参数信息
           LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
 
       // MapBuilder类是完整的SLAM算法类
