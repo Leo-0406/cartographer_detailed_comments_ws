@@ -83,7 +83,7 @@ class PoseGraphInterface {
   // tag: TrajectoryData
   struct TrajectoryData {
     double gravity_constant = 9.8;
-    std::array<double, 4> imu_calibration{{1., 0., 0., 0.}};
+    std::array<double, 4> imu_calibration{{1., 0., 0., 0.}}; //  imu 校准
     absl::optional<transform::Rigid3d> fixed_frame_origin_in_map;
   };
 

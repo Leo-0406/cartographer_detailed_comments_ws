@@ -39,9 +39,9 @@
 namespace cartographer {
 namespace mapping {
   
-// c++11: 匿名命名空间, 作用域被限制在本文件内
+// c++11: 匿名命名空间, 作用域被限制在本文件内 
 namespace { 
-
+// 通过using声明语句，把该函数的所有重载实例添加到派生类作用域中
 using mapping::proto::SerializedData;
 
 // 只返回传感器类型是RANGE的topic的集合
@@ -266,6 +266,7 @@ int MapBuilder::AddTrajectoryForDeserialization(
 
   // c++11: vector::emplace_back() 在原地构造, 直接传入vector, 不调用移动构造函数
 
+  // 构造空的vector 名为trajectory_builders_
   trajectory_builders_.emplace_back();
   all_trajectory_builder_options_.push_back(options_with_sensor_ids_proto);
   CHECK_EQ(trajectory_builders_.size(), all_trajectory_builder_options_.size());
@@ -273,13 +274,19 @@ int MapBuilder::AddTrajectoryForDeserialization(
 }
 
 // 结束指定id的轨迹, 分别进行 传感器数据处理的结束 与 位姿图的结束
+// 调用顺序与开始轨迹类似
 void MapBuilder::FinishTrajectory(const int trajectory_id) {
   sensor_collator_->FinishTrajectory(trajectory_id);
   pose_graph_->FinishTrajectory(trajectory_id);
 }
 
 // 返回压缩后的地图数据
-std::string MapBuilder::SubmapToProto(
+// mapbuiler_bridge --> HandSubmapQuery中进行调用，是node.cc中的一个服务  --->
+// node.cc中Node::HandleSubmapQuery接收map_builder_bridge_.HandleSubmapQuery（）的返回值作为参数  --->
+// MapBuilderBridge::HandleSubmapQuery对HandleSubmapQuery进行调用  --->
+// 通过map_builder_->SubmapToProto(submap_id, &response_proto)获取压缩后的地图数据  --->
+// 获取到的地图数据填充到response中  ---完成填充后传入std::string MapBuilder::SubmapToProto（）函数中---
+std::string MapBuilder::SubmapToProto(                  //  此处接收填充好的地图数据  
     const SubmapId& submap_id, proto::SubmapQuery::Response* const response) {
   // 进行id的检查
   if (submap_id.trajectory_id < 0 ||
@@ -289,7 +296,9 @@ std::string MapBuilder::SubmapToProto(
            std::to_string(num_trajectory_builders()) + " trajectories.";
   }
 
-  // 获取地图数据
+  //  获取地图数据   pos3_graph_2d.cc中
+  //  pose_graph_->GetSubmapData(submap_id) ---> 保存了栅格值的智能指针
+  //  指针名为 submap_data
   const auto submap_data = pose_graph_->GetSubmapData(submap_id);
   if (submap_data.submap == nullptr) {
     return "Requested submap " + std::to_string(submap_id.submap_index) +
@@ -303,6 +312,8 @@ std::string MapBuilder::SubmapToProto(
 }
 
 // 调用 io::WritePbStream 保存所有数据, 没有使用
+
+// node.cc中HandWriteState/SerializeState两处进调用--->MapBuilderBridge::SerializeState()处进行调用
 void MapBuilder::SerializeState(bool include_unfinished_submaps,
                                 io::ProtoStreamWriterInterface* const writer) {
   io::WritePbStream(*pose_graph_, all_trajectory_builder_options_, writer,
@@ -311,8 +322,10 @@ void MapBuilder::SerializeState(bool include_unfinished_submaps,
 
 // 将数据进行压缩,并保存到文件中
 bool MapBuilder::SerializeStateToFile(bool include_unfinished_submaps,
+                                            //  保存文件名
                                       const std::string& filename) {
-  io::ProtoStreamWriter writer(filename);
+  io::ProtoStreamWriter writer(filename);  // 依据保存文件名创建对象
+                                                         //  将构造好的对象传入          
   io::WritePbStream(*pose_graph_, all_trajectory_builder_options_, &writer,
                     include_unfinished_submaps);
   return (writer.Close());

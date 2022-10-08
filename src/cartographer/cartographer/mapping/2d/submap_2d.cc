@@ -147,10 +147,12 @@ void Submap2D::ToResponseProto(
     proto::SubmapQuery::Response* const response) const {
   if (!grid_) return;
   response->set_submap_version(num_range_data());
+
   // note: const在*后边, 指针指向的地址不能变,而内存单元中的内容可变
-  proto::SubmapQuery::Response::SubmapTexture* const texture =
-      response->add_textures();
-  // 填充压缩后的数据
+                             //  texture指针指向的地址不可改变，地址中保存的值可以改变                                                
+  proto::SubmapQuery::Response::SubmapTexture* const texture = response->add_textures();
+
+  // 填充压缩后的数据  通过DrawToSubmapTexture() 函数完成填充
   grid()->DrawToSubmapTexture(texture, local_pose());
 }
 

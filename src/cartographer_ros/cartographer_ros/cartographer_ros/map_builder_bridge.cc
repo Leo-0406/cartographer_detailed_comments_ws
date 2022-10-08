@@ -210,7 +210,7 @@ void MapBuilderBridge::HandleSubmapQuery(
   cartographer::mapping::SubmapId submap_id{request.trajectory_id,
                                             request.submap_index};
   // 获取压缩后的地图数据
-  const std::string error =
+  const std::string error =        // &response_proto接收获取到的地图数据
       map_builder_->SubmapToProto(submap_id, &response_proto);
   if (!error.empty()) {
     LOG(ERROR) << error;

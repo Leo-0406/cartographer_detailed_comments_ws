@@ -49,7 +49,9 @@ bool ReadSizeAsLittleEndian(std::istream* in, uint64* size) {
 
 // 以二进制方式, 写入的方式打开文件, 并写入8个字节的数据校验
 ProtoStreamWriter::ProtoStreamWriter(const std::string& filename)
+    // 传入filename,以std::ios::out 或者 std::ios::binary的形式初始化 out_ 对象：  std::ofstream out_;
     : out_(filename, std::ios::out | std::ios::binary) {
+  // 调用 WriteSizeAsLittleEndian  进行数据写入
   WriteSizeAsLittleEndian(kMagic, &out_);
 }
 
@@ -58,7 +60,7 @@ void ProtoStreamWriter::Write(const std::string& uncompressed_data) {
   std::string compressed_data;
   // 对数据进行压缩
   common::FastGzipString(uncompressed_data, &compressed_data);
-  // 根据数据的size写入文件
+  // 根据数据的size写入文件，  要存放数据的大小         
   WriteSizeAsLittleEndian(compressed_data.size(), &out_);
   // 将内存中 compressed_data 以二进制的形式写入文件
   out_.write(compressed_data.data(), compressed_data.size());
@@ -67,6 +69,7 @@ void ProtoStreamWriter::Write(const std::string& uncompressed_data) {
 // 将数据写入文件中
 void ProtoStreamWriter::WriteProto(const google::protobuf::Message& proto) {
   std::string uncompressed_data;
+  // 通过SerializeToString（）函数，将传入的数据写成序列化的string
   proto.SerializeToString(&uncompressed_data);
   // 压缩并写入
   Write(uncompressed_data);
