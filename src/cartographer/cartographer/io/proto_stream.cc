@@ -111,9 +111,9 @@ bool ProtoStreamReader::Read(std::string* decompressed_data) {
   return true;
 }
 
-// 读取数据并返回protobuf格式的数据
+// 读取数据并返回protobuf格式的数据    string  --->  protobuf  Message 格式
 bool ProtoStreamReader::ReadProto(google::protobuf::Message* proto) {
-  std::string decompressed_data;
+  std::string decompressed_data;       
   return Read(&decompressed_data) && proto->ParseFromString(decompressed_data);
 }
 

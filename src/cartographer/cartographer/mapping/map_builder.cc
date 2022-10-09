@@ -334,13 +334,15 @@ bool MapBuilder::SerializeStateToFile(bool include_unfinished_submaps,
 // 从pbstream文件向位姿图添加信息
 std::map<int, int> MapBuilder::LoadState(
     io::ProtoStreamReaderInterface* const reader, bool load_frozen_state) {
+                      //  解序列化
   io::ProtoStreamDeserializer deserializer(reader);
 
   // Create a copy of the pose_graph_proto, such that we can re-write the
   // trajectory ids.
+  // 此处的为可变的posegraph
   proto::PoseGraph pose_graph_proto = deserializer.pose_graph();
-  const auto& all_builder_options_proto =
-      deserializer.all_trajectory_builder_options();
+  // 获取配置文件信息   
+  const auto& all_builder_options_proto = deserializer.all_trajectory_builder_options();
 
   // key为pbstream文件中的轨迹id, value为新生成的轨迹的id
   std::map<int, int> trajectory_remapping;
@@ -348,6 +350,7 @@ std::map<int, int> MapBuilder::LoadState(
   // 从文件中添加轨迹
   for (int i = 0; i < pose_graph_proto.trajectory_size(); ++i) {
     auto& trajectory_proto = *pose_graph_proto.mutable_trajectory(i);
+    // 常量的引用，不可以通过该引用修改绑定的被引用对象的值
     const auto& options_with_sensor_ids_proto =
         all_builder_options_proto.options_with_sensor_ids(i);
     // 添加新轨迹
@@ -356,7 +359,7 @@ std::map<int, int> MapBuilder::LoadState(
     // 原始轨迹id与新生成的轨迹id组成map,放入trajectory_remapping中
     CHECK(trajectory_remapping
               .emplace(trajectory_proto.trajectory_id(), new_trajectory_id)
-              .second)
+              .second) // .second是确认是否插入成功
         << "Duplicate trajectory ID: " << trajectory_proto.trajectory_id();
     // 将轨迹id设置为新生成的id
     trajectory_proto.set_trajectory_id(new_trajectory_id);
@@ -401,6 +404,7 @@ std::map<int, int> MapBuilder::LoadState(
   // Set global poses of landmarks.
   // 将landmark_poses添加到位姿图中
   for (const auto& landmark : pose_graph_proto.landmark_poses()) {
+     // 通过->SetLandmarkPose() 对当前的位姿图进行更新
     pose_graph_->SetLandmarkPose(landmark.landmark_id(),
                                  transform::ToRigid3(landmark.global_pose()),
                                  true);
@@ -415,7 +419,8 @@ std::map<int, int> MapBuilder::LoadState(
   }
 
   SerializedData proto;
-  // 向pose_graph_中添加信息
+  // 向pose_graph_中添加信息   
+  // proto_stream_deserializer.cc中只读取了 Header, posegraph, all_trejactory_builder_options
   while (deserializer.ReadNextSerializedData(&proto)) {
     switch (proto.data_case()) {
       case SerializedData::kPoseGraph:
@@ -429,6 +434,7 @@ std::map<int, int> MapBuilder::LoadState(
         break;
       case SerializedData::kSubmap: {
         // 为submap设置新的轨迹id
+        // pbstream使用的是建图的轨迹id,现在使用的时候可能已经被占用，因此需要更新
         proto.mutable_submap()->mutable_submap_id()->set_trajectory_id(
             trajectory_remapping.at(
                 proto.submap().submap_id().trajectory_id()));
@@ -473,7 +479,7 @@ std::map<int, int> MapBuilder::LoadState(
             sensor::FromProto(proto.odometry_data().odometry_data()));
         break;
       }
-      case SerializedData::kFixedFramePoseData: {
+      case SerializedData::kFixedFramePoseData: { // gps
         if (load_frozen_state) break;
         // 将GPS数据添加到位姿图中
         pose_graph_->AddFixedFramePoseData(
@@ -527,12 +533,13 @@ std::map<int, int> MapBuilder::LoadState(
   return trajectory_remapping;
 }
 
+
 // 从pbstream文件读取信息
 std::map<int, int> MapBuilder::LoadStateFromFile(
     const std::string& state_filename, const bool load_frozen_state) {
-  // 检查后缀名
+  // 检查后缀名    定义.pbstrea后缀名的string文件
   const std::string suffix = ".pbstream";
-  if (state_filename.substr(
+  if (state_filename.substr(  //  substr() 截取字符串
           std::max<int>(state_filename.size() - suffix.size(), 0)) != suffix) {
     LOG(WARNING) << "The file containing the state should be a "
                     ".pbstream file.";

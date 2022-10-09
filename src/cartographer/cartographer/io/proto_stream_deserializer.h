@@ -45,7 +45,7 @@ class ProtoStreamDeserializer {
     return *pose_graph_.mutable_pose_graph();
   }
   const mapping::proto::PoseGraph& pose_graph() const {
-    return pose_graph_.pose_graph();
+    return pose_graph_.pose_graph();  // const类型引用的pose_graph，不可以被改变
   }
 
   const mapping::proto::AllTrajectoryBuilderOptions&
