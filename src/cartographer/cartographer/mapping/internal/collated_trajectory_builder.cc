@@ -30,7 +30,7 @@ constexpr double kSensorDataRatesLoggingPeriodSeconds = 15.;
 
 /**
  * @brief Construct a new Collated Trajectory Builder:: Collated Trajectory Builder object
- * 
+ * CollatedTrajectoryBuilder主要作用是整理传感器数据，进行数据的分发
  * @param[in] trajectory_options 轨迹的参数配置
  * @param[in] sensor_collator 传入的整理传感器的类,有2种类型
  * @param[in] trajectory_id 新生成的轨迹的id
@@ -39,10 +39,12 @@ constexpr double kSensorDataRatesLoggingPeriodSeconds = 15.;
  */
 CollatedTrajectoryBuilder::CollatedTrajectoryBuilder(
     const proto::TrajectoryBuilderOptions& trajectory_options,
-    sensor::CollatorInterface* const sensor_collator, const int trajectory_id,
+    sensor::CollatorInterface* const sensor_collator, // sensor::collate
+    const int trajectory_id,
     const std::set<SensorId>& expected_sensor_ids,
     std::unique_ptr<TrajectoryBuilderInterface> wrapped_trajectory_builder)
-    : sensor_collator_(sensor_collator),
+                                          // GlobalTrajectoryBuilder
+    : sensor_collator_(sensor_collator),  // sensor::collate
       
       // 以下两个参数在 configuration_files/trajectory_builder.lua 中
       // collate_landmarks 为 false, 不要将landmark数据放入到阻塞队列中
@@ -50,11 +52,12 @@ CollatedTrajectoryBuilder::CollatedTrajectoryBuilder(
       // collate_fixed_frame 为 true, 将gps数据放入阻塞队列中
       collate_fixed_frame_(trajectory_options.collate_fixed_frame()),
       
-      trajectory_id_(trajectory_id),
+      trajectory_id_(trajectory_id),         // GlobalTrajectoryBuilder
       wrapped_trajectory_builder_(std::move(wrapped_trajectory_builder)),
+      // 重置为当前时间
       last_logging_time_(std::chrono::steady_clock::now()) {
         
-  // 获取topic的名字, 并根据参数配置决定是否加入LANDMARK与gps的topic
+  // 获取topic的名字, 并根据参数配置决定是否加入LANDMARK与gps的topic，set集合里不会有重复的数据
   absl::flat_hash_set<std::string> expected_sensor_id_strings;
   for (const auto& sensor_id : expected_sensor_ids) {
     // collate_landmarks 为 false, sensor_collator_不处理LANDMARK数据
@@ -67,7 +70,7 @@ CollatedTrajectoryBuilder::CollatedTrajectoryBuilder(
         !collate_fixed_frame_) {
       continue;
     }
-    expected_sensor_id_strings.insert(sensor_id.id);
+    expected_sensor_id_strings.insert(sensor_id.id); // sensor_id.id ---> topic的名字
   }
 
   // sensor::Collator的初始化
@@ -89,9 +92,9 @@ void CollatedTrajectoryBuilder::AddData(std::unique_ptr<sensor::Data> data) {
  * @param[in] sensor_id 传感器的topic的名字
  * @param[in] data 需要处理的数据(Data是个类模板,可处理多种不同数据类型的数据)
  */
-void CollatedTrajectoryBuilder::HandleCollatedSensorData(
+void CollatedTrajectoryBuilder::HandleCollatedSensorData( // 80行的lambda表达式调用
     const std::string& sensor_id, std::unique_ptr<sensor::Data> data) {
-  auto it = rate_timers_.find(sensor_id);
+  auto it = rate_timers_.find(sensor_id); // rate_timers_是一个map<string, Ratetimer>
   // 找不到就新建一个
   if (it == rate_timers_.end()) {
     // map::emplace()返回一个pair
@@ -106,10 +109,10 @@ void CollatedTrajectoryBuilder::HandleCollatedSensorData(
              .first;
   }
   
-  // 对数据队列进行更新
+  // 对数据队列进行更新，暂停时间
   it->second.Pulse(data->GetTime());
 
-  if (std::chrono::steady_clock::now() - last_logging_time_ >
+  if (std::chrono::steady_clock::now() - last_logging_time_ >   // 15秒
       common::FromSeconds(kSensorDataRatesLoggingPeriodSeconds)) {
     for (const auto& pair : rate_timers_) {
       LOG(INFO) << pair.first << " rate: " << pair.second.DebugString();
@@ -123,6 +126,7 @@ void CollatedTrajectoryBuilder::HandleCollatedSensorData(
 
   // 将排序好的数据送入 GlobalTrajectoryBuilder中的AddSensorData()函数中进行使用
   data->AddToTrajectoryBuilder(wrapped_trajectory_builder_.get());
+  // cartographer-->sensor-->interal-->diapatchable-->AddToTrajectoryBuilder()
 }
 
 }  // namespace mapping

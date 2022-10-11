@@ -1234,8 +1234,7 @@ void Node::HandleLaserScanMessage(const int trajectory_id,
   if (!sensor_samplers_.at(trajectory_id).rangefinder_sampler.Pulse()) {
     return;
   }
-  map_builder_bridge_.sensor_bridge(trajectory_id)
-      ->HandleLaserScanMessage(sensor_id, msg);
+  map_builder_bridge_.sensor_bridge(trajectory_id)->HandleLaserScanMessage(sensor_id, msg);
 }
 
 // 调用SensorBridge的传感器处理函数进行数据处理

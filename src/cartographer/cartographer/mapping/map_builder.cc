@@ -84,7 +84,7 @@ void MaybeAddPureLocalizationTrimmer(
  * @param[in] options proto::MapBuilderOptions格式的 map_builder参数
  */
 MapBuilder::MapBuilder(const proto::MapBuilderOptions& options)
-  // 参数以options的形式（pbstream  protobuf格式的一种数据结构）、
+  // 参数以options的形式（pbstream  protobuf格式的一种数据结构）
                          // 初始化线程池，数量为4
     : options_(options), thread_pool_(options.num_background_threads()) { 
   // param: num_background_threads, 在map_builder.lua文件中进行设置
@@ -218,8 +218,11 @@ int MapBuilder::AddTrajectoryBuilder(
     DCHECK(dynamic_cast<PoseGraph2D*>(pose_graph_.get()));
 
     // CollatedTrajectoryBuilder初始化
+    // 传入的5个参数与collated_trajectory_builder.cc中的5个参数对应
     trajectory_builders_.push_back(absl::make_unique<CollatedTrajectoryBuilder>(
-        trajectory_options, sensor_collator_.get(), trajectory_id,
+        trajectory_options, 
+        sensor_collator_.get(),    // sensor::collate
+        trajectory_id,
         expected_sensor_ids,
         // 将2D前端与2D位姿图打包在一起, 传入CollatedTrajectoryBuilder
         CreateGlobalTrajectoryBuilder2D(

@@ -53,10 +53,13 @@ SensorBridge::SensorBridge(
     const int num_subdivisions_per_laser_scan,
     const std::string& tracking_frame,
     const double lookup_transform_timeout_sec, tf2_ros::Buffer* const tf_buffer,
+                  //  父类(接口)指针指向基类对象，此处完成了多态，会调用子类对象
     carto::mapping::TrajectoryBuilderInterface* const trajectory_builder)
     : num_subdivisions_per_laser_scan_(num_subdivisions_per_laser_scan),
       tf_bridge_(tracking_frame, lookup_transform_timeout_sec, tf_buffer),
-      trajectory_builder_(trajectory_builder) {}   // trajectory_builder --> map_builder_bridge第166行，// CollatedTrajectoryBuilder
+      // trajectory_builder --> map_builder_bridge第166行，// CollatedTrajectoryBuilder
+      // 传入的是指向CollatedTrajectoryBuilder的指针
+      trajectory_builder_(trajectory_builder) {}   
 
 // 将ros格式的里程计数据 转成tracking frame的pose, 再转成carto的里程计数据类型
 std::unique_ptr<carto::sensor::OdometryData> SensorBridge::ToOdometryData(
@@ -191,7 +194,7 @@ void SensorBridge::HandleImuMessage(const std::string& sensor_id,
 void SensorBridge::HandleLaserScanMessage(
     const std::string& sensor_id, const sensor_msgs::LaserScan::ConstPtr& msg) {
   carto::sensor::PointCloudWithIntensities point_cloud;
-  carto::common::Time time;
+  carto::common::Time time;         // 消息格式转换
   std::tie(point_cloud, time) = ToPointCloudWithIntensities(*msg);
   HandleLaserScan(sensor_id, time, msg->header.frame_id, point_cloud);
 }
@@ -292,8 +295,7 @@ void SensorBridge::HandleRangefinder(
   if (!ranges.empty()) {
     CHECK_LE(ranges.back().time, 0.f);
   }
-  const auto sensor_to_tracking =
-      tf_bridge_.LookupToTracking(time, CheckNoLeadingSlash(frame_id));
+  const auto sensor_to_tracking = tf_bridge_.LookupToTracking(time, CheckNoLeadingSlash(frame_id));
 
   // 以 tracking 到 sensor_frame 的坐标变换为TimedPointCloudData 的 origin
   // 将点云的坐标转成 tracking 坐标系下的坐标, 再传入trajectory_builder_

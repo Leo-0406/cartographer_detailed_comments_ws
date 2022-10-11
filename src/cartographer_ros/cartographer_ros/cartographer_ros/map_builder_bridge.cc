@@ -164,7 +164,19 @@ int MapBuilderBridge::AddTrajectory(
       trajectory_options.tracking_frame,
       node_options_.lookup_transform_timeout_sec, 
       tf_buffer_,
-      map_builder_->GetTrajectoryBuilder(trajectory_id)); // CollatedTrajectoryBuilder
+      // map_builder.cc  ---->   AddTrajectoryBuilder  ------->
+      // trajectory_builders_.push_back(absl::make_unique<CollatedTrajectoryBuilder>
+
+      // 在执行GetTrajectoryBuilder()函数时，返回指定id的一个trajectory_builders_指针,并通过.get()获取原始指针
+      // GetTrajectoryBuilder函数在map_builder.h文件下的如下：
+      //  返回指向CollatedTrajectoryBuilder的指针
+      //  mapping::TrajectoryBuilderInterface *GetTrajectoryBuilder(
+      //     int trajectory_id)  const override  {
+      //     return trajectory_builders_.at(trajectory_id).get();
+      //     }
+
+      // 返回指向CollatedTrajectoryBuilder的指针，传入到sensor_bridge中
+      map_builder_->GetTrajectoryBuilder(trajectory_id)); 
   
   // Step: 3 保存轨迹的参数配置
   auto emplace_result =

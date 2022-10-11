@@ -36,7 +36,7 @@ namespace mapping {
 
 // Collates sensor data using a sensor::CollatorInterface, then passes it on to
 // a mapping::TrajectoryBuilderInterface which is common for 2D and 3D.
-// 使用 sensor::CollatorInterface 整理传感器数据, 
+// 使用 sensor::CollatorInterface 整理传感器数据, 进行数据分发
 // 然后将其传递到2D和3D通用的 mapping::TrajectoryBuilderInterface
 
 // 处理传感器数据, 使其按照时间排列, 然后传入GlobalTrajectoryBuilder
@@ -49,6 +49,7 @@ class CollatedTrajectoryBuilder : public TrajectoryBuilderInterface {
       sensor::CollatorInterface* sensor_collator, int trajectory_id,
       const std::set<SensorId>& expected_sensor_ids,
       std::unique_ptr<TrajectoryBuilderInterface> wrapped_trajectory_builder);
+  // 虚析构函数， override 重写基类函数 ，参数列表，返回值类型，const使用，与基类保持一致 
   ~CollatedTrajectoryBuilder() override {}
 
   CollatedTrajectoryBuilder(const CollatedTrajectoryBuilder&) = delete;
@@ -57,7 +58,7 @@ class CollatedTrajectoryBuilder : public TrajectoryBuilderInterface {
 
   // 处理雷达点云数据
   void AddSensorData(
-      const std::string& sensor_id,
+      const std::string& sensor_id,   // 接收一个传感器话题
       const sensor::TimedPointCloudData& timed_point_cloud_data) override {
     AddData(sensor::MakeDispatchable(sensor_id, timed_point_cloud_data));
   }
@@ -78,9 +79,9 @@ class CollatedTrajectoryBuilder : public TrajectoryBuilderInterface {
   // AddData与wrapped_trajectory_builder_->AddSensorData只能选一种
   // 因为AddData最终调用的就是wrapped_trajectory_builder_->AddSensorData
   void AddSensorData(
-      const std::string& sensor_id,
+      const std::string& sensor_id,     // gps数据
       const sensor::FixedFramePoseData& fixed_frame_pose_data) override {
-    if (collate_fixed_frame_) {
+    if (collate_fixed_frame_) { // collate_fixed_frame_在trajectory_builde.lua中定义，默认为true
       AddData(sensor::MakeDispatchable(sensor_id, fixed_frame_pose_data));
       return;
     }
@@ -91,7 +92,7 @@ class CollatedTrajectoryBuilder : public TrajectoryBuilderInterface {
   // 根据参数决定Landmark数据是否需要排序
   void AddSensorData(const std::string& sensor_id,
                      const sensor::LandmarkData& landmark_data) override {
-    if (collate_landmarks_) {
+    if (collate_landmarks_) {   // landmark   同上
       AddData(sensor::MakeDispatchable(sensor_id, landmark_data));
       return;
     }

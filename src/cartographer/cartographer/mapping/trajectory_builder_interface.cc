@@ -31,10 +31,8 @@ void PopulatePureLocalizationTrimmerOptions(
   if (!parameter_dictionary->HasKey(kDictionaryKey)) return;
 
   auto options_dictionary = parameter_dictionary->GetDictionary(kDictionaryKey);
-  auto* options =
-      trajectory_builder_options->mutable_pure_localization_trimmer();
-  options->set_max_submaps_to_keep(
-      options_dictionary->GetInt("max_submaps_to_keep"));
+  auto* options = trajectory_builder_options->mutable_pure_localization_trimmer();
+  options->set_max_submaps_to_keep(options_dictionary->GetInt("max_submaps_to_keep"));
 }
 
 void PopulatePoseGraphOdometryMotionFilterOptions(
