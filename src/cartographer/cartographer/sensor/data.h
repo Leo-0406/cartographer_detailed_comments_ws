@@ -32,6 +32,7 @@ namespace sensor {
 // Dispatchable的基类
 class Data {
  public:
+  // explicit防止传入参数发生隐式转换
   explicit Data(const std::string &sensor_id) : sensor_id_(sensor_id) {}
   virtual ~Data() {}
 
@@ -40,8 +41,8 @@ class Data {
   virtual void AddToTrajectoryBuilder(
       mapping::TrajectoryBuilderInterface *trajectory_builder) = 0;
 
- protected:
-  const std::string sensor_id_;
+ protected: 
+  const std::string sensor_id_; // 传感器的topic
 };
 
 }  // namespace sensor

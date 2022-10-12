@@ -101,15 +101,15 @@ void CollatedTrajectoryBuilder::HandleCollatedSensorData( // 80行的lambda表�
     // emplace().first表示新插入元素或者原始位置的迭代器
     // emplace().second表示插入成功,只有在key在map中不存在时才插入成功
     it = rate_timers_
-             .emplace(
+             .emplace( // 使用emplace()时需要三个参数，一个标志，+键+值
                  std::piecewise_construct, 
                  std::forward_as_tuple(sensor_id),
-                 std::forward_as_tuple(
+                 std::forward_as_tuple(      // rate_timer.h中   15s
                      common::FromSeconds(kSensorDataRatesLoggingPeriodSeconds)))
              .first;
   }
   
-  // 对数据队列进行更新，暂停时间
+  // 对数据队列进行更新，暂停时间, it->second()  取map中的值--> Ratetimer
   it->second.Pulse(data->GetTime());
 
   if (std::chrono::steady_clock::now() - last_logging_time_ >   // 15秒

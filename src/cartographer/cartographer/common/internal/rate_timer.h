@@ -63,7 +63,7 @@ class RateTimer {
   double ComputeWallTimeRateRatio() const {
     if (events_.empty()) {
       return 0.;
-    }
+    }                                // time：传感器的时间
     return common::ToSeconds((events_.back().time - events_.front().time)) /
            common::ToSeconds(events_.back().wall_time -
                              events_.front().wall_time);
@@ -75,8 +75,9 @@ class RateTimer {
     // 将传入的时间放入队列中
     events_.push_back(Event{time, ClockType::now()});
     // 删除队列头部数据,直到队列中最后与最前间的时间间隔小于window_duration_
-    while (events_.size() > 2 &&
+    while (events_.size() > 2 &&              //  C++系统的时间
            (events_.back().wall_time - events_.front().wall_time) >
+                //    15秒
                window_duration_) {
       events_.pop_front();
     }
