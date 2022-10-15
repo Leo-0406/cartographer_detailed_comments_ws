@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// collator主要是对queue进行封装
+
 #include "cartographer/sensor/internal/collator.h"
 
 namespace cartographer {
@@ -26,7 +28,7 @@ namespace sensor {
  * @param[in] expected_sensor_ids 需要排序的topic名字的集合
  * @param[in] callback 2个参数的回调函数, 实际是CollatedTrajectoryBuilder::HandleCollatedSensorData()函数
  */
-void Collator::AddTrajectory(
+void Collator::AddTrajectory( //  collated_trajectory_builder.cc中调用
     const int trajectory_id,
     const absl::flat_hash_set<std::string>& expected_sensor_ids,
     const Callback& callback) {
@@ -34,6 +36,7 @@ void Collator::AddTrajectory(
     const auto queue_key = QueueKey{trajectory_id, sensor_id};
     queue_.AddQueue(queue_key,
                     // void(std::unique_ptr<Data> data) 带了个默认参数sensor_id
+                    // 此处只传入了一个参数  data, 另一个参数通过补货for循环的sensor_id提供
                     [callback, sensor_id](std::unique_ptr<Data> data) {
                       callback(sensor_id, std::move(data));
                     });
@@ -41,7 +44,7 @@ void Collator::AddTrajectory(
   }
 }
 
-// 将 trajectory_id 标记为完成
+// 将 trajectory_id 标记为完成，map_builder.cc
 void Collator::FinishTrajectory(const int trajectory_id) {
   for (const auto& queue_key : queue_keys_[trajectory_id]) {
     queue_.MarkQueueAsFinished(queue_key);
@@ -49,6 +52,7 @@ void Collator::FinishTrajectory(const int trajectory_id) {
 }
 
 // 向数据队列中添加 传感器数据 
+// collaated_trajectory_builder.cc ---> AddData()进行调用
 void Collator::AddSensorData(const int trajectory_id,
                              std::unique_ptr<Data> data) {
   QueueKey queue_key{trajectory_id, data->GetSensorId()};
@@ -57,6 +61,7 @@ void Collator::AddSensorData(const int trajectory_id,
 
 // 将所有数据队列标记为已完成,分派所有剩下的传感器数据
 // 只能调用一次, 在 Flush 之后不能再调用 AddSensorData()
+// Flush()清空操作
 void Collator::Flush() { queue_.Flush(); }
 
 // 返回在 CollatorInterface 解锁之前需要更多数据的轨迹的 ID

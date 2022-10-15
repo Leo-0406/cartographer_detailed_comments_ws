@@ -52,6 +52,7 @@ class Collator : public CollatorInterface {
 
  private:
   // Queue keys are a pair of trajectory ID and sensor identifier.
+  //  多个顺序队列，按照时间排序
   OrderedMultiQueue queue_;
 
   // Map of trajectory ID to all associated QueueKeys.

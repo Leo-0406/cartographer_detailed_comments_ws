@@ -59,7 +59,7 @@ class OrderedMultiQueue {
   OrderedMultiQueue();
 
   // c++11: 移动构造函数, 只在使用的时候编译器才会自动生成
-  // 这里是显示指定让编译器生成一个默认的移动构造函数
+  // &&这里是显示指定让编译器生成一个默认的移动构造函数，使用时编译器才会生成，不使用时不会生成
   OrderedMultiQueue(OrderedMultiQueue&& queue) = default;
 
   ~OrderedMultiQueue();
@@ -87,7 +87,7 @@ class OrderedMultiQueue {
 
  private:
   struct Queue {
-    common::BlockingQueue<std::unique_ptr<Data>> queue;   // 存储数据的队列
+    common::BlockingQueue<std::unique_ptr<Data>> queue;   // 存储数据的队列，阻塞队列
     Callback callback;                                    // 本数据队列对应的回调函数
     bool finished = false;                                // 这个queue是否finished
   };
@@ -98,7 +98,7 @@ class OrderedMultiQueue {
 
   // Used to verify that values are dispatched in sorted order.
   common::Time last_dispatched_time_ = common::Time::min();
-
+      // trajectory_id
   std::map<int, common::Time> common_start_time_per_trajectory_;
   std::map<QueueKey, Queue> queues_;   // 多个数据队列
   QueueKey blocker_;

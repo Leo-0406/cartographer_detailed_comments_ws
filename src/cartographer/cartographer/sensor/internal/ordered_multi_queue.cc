@@ -37,9 +37,10 @@ const int kMaxQueueSize = 500;
 inline std::ostream& operator<<(std::ostream& out, const QueueKey& key) {
   return out << '(' << key.trajectory_id << ", " << key.sensor_id << ')';
 }
-
+// 默认构造函数的声明
 OrderedMultiQueue::OrderedMultiQueue() {}
 
+// 析构函数做检查操作
 OrderedMultiQueue::~OrderedMultiQueue() {
   for (auto& entry : queues_) {
     CHECK(entry.second.finished);
@@ -53,6 +54,7 @@ OrderedMultiQueue::~OrderedMultiQueue() {
  * @param[in] callback void(std::unique_ptr<Data> data) 型的函数
  * 这里的callback已经是对应sensor_id的callback了
  */
+// AddQueue（根据topic数量会执行不同次数）：collator.cc ---> AddTrajectory()中进行调用，
 void OrderedMultiQueue::AddQueue(const QueueKey& queue_key, Callback callback) {
   CHECK_EQ(queues_.count(queue_key), 0);
   queues_[queue_key].callback = std::move(callback);
@@ -71,6 +73,7 @@ void OrderedMultiQueue::MarkQueueAsFinished(const QueueKey& queue_key) {
 }
 
 // 向数据队列中添加数据
+// Add():    collator.cc ---> AddSensorData()进行调用
 void OrderedMultiQueue::Add(const QueueKey& queue_key,
                             std::unique_ptr<Data> data) {
   auto it = queues_.find(queue_key);
@@ -93,7 +96,7 @@ void OrderedMultiQueue::Flush() {
   // 找到所有unfinished的数据队列
   std::vector<QueueKey> unfinished_queues;
   for (auto& entry : queues_) {
-    if (!entry.second.finished) {
+    if (!entry.second.finished) { //  false的话，就进行取反
       unfinished_queues.push_back(entry.first);
     }
   }

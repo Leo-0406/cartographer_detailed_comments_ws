@@ -75,7 +75,8 @@ CollatedTrajectoryBuilder::CollatedTrajectoryBuilder(
 
   // sensor::Collator的初始化
   sensor_collator_->AddTrajectory(
-      trajectory_id, expected_sensor_id_strings,
+      trajectory_id, 
+      expected_sensor_id_strings,
       [this](const std::string& sensor_id, std::unique_ptr<sensor::Data> data) {
         HandleCollatedSensorData(sensor_id, std::move(data));
       });
@@ -83,6 +84,7 @@ CollatedTrajectoryBuilder::CollatedTrajectoryBuilder(
 
 // 将数据传入sensor_collator_的AddSensorData进行排序
 void CollatedTrajectoryBuilder::AddData(std::unique_ptr<sensor::Data> data) {
+  // 在map_builder类中进行初始化,
   sensor_collator_->AddSensorData(trajectory_id_, std::move(data));
 }
 

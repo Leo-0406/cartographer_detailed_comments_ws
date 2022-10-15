@@ -115,7 +115,8 @@ MapBuilder::MapBuilder(const proto::MapBuilderOptions& options)
   if (options.collate_by_trajectory()) { // false  执行else
     sensor_collator_ = absl::make_unique<sensor::TrajectoryCollator>();
   } else {
-    // sensor_collator_初始化, 实际使用这个
+    // sensor_collator_初始化, 实际使用这个，if中参数默认false
+    // 获取到的指针赋值给sensor_collator_，sensor_collator_作为参数传入collated_trajectory_builder(197行)
     sensor_collator_ = absl::make_unique<sensor::Collator>();
   }
 }
@@ -195,7 +196,8 @@ int MapBuilder::AddTrajectoryBuilder(
     // TrajectoryBuilderInterface的数据类型为CollatedTrajectoryBuilder
     trajectory_builders_.push_back(absl::make_unique<CollatedTrajectoryBuilder>(
         trajectory_options, 
-        sensor_collator_.get(), trajectory_id,
+        sensor_collator_.get(),  // sensor::collator
+        trajectory_id,
         expected_sensor_ids,
         // 将3D前端与3D位姿图打包在一起, 传入CollatedTrajectoryBuilder
         CreateGlobalTrajectoryBuilder3D(
