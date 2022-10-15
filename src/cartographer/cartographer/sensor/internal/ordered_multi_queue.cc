@@ -259,13 +259,15 @@ common::Time OrderedMultiQueue::GetCommonStartTime(const int trajectory_id) {
   // c++11: map::emplace() 返回的 pair 对象
   // pair 的成员变量 first 是一个指向插入元素或阻止插入的元素的迭代器
   // 成员变量 second 是个布尔值, 表示是否插入成功, 如果这个元素的索引已经存在插入会失败,返回false
+                        //  map<int, common::Time>
   auto emplace_result = common_start_time_per_trajectory_.emplace(
       trajectory_id, common::Time::min());
   common::Time& common_start_time = emplace_result.first->second;
 
   // 如果插入成功了就找到时间戳最大的对common_start_time进行更新, 失败了就不更新
+  // 只有当map中的key保存的轨迹ID不存在要插入的ID时，才能插入成功
   // 只会在轨迹开始时插入成功一次
-  if (emplace_result.second) {
+  if (emplace_result.second) {  // 插入成功，则返回true,
     // 找到这个轨迹下,所有数据队列中数据的时间戳最大 的时间戳
     // 执行到这里时, 所有的数据队列都有值了, 因为没值的情况在Dispatch()中提前返回了
     for (auto& entry : queues_) {
