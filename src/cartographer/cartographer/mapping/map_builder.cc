@@ -143,125 +143,125 @@ int MapBuilder::AddTrajectoryBuilder(
     const proto::TrajectoryBuilderOptions& trajectory_options,
     // 需要传入的回调函数 实际上是map_builder_bridge.cc 中的 OnLocalSlamResult() 函数
     LocalSlamResultCallback local_slam_result_callback) {
+      // id是从零开始的, 所以新trajectory_id就是trajectory_builders_的size()
+      const int trajectory_id = trajectory_builders_.size(); // vector初始size为0
 
-  // id是从零开始的, 所以新trajectory_id就是trajectory_builders_的size()
-  const int trajectory_id = trajectory_builders_.size(); // vector初始size为0
+      // 运动过滤器, 运动太小没必要进行更新
+      // 配置文件中没有 pose_graph_odometry_motion_filte
+      absl::optional<MotionFilter> pose_graph_odometry_motion_filter;
 
-  // 运动过滤器, 运动太小没必要进行更新
-  // 配置文件中没有 pose_graph_odometry_motion_filte
-  absl::optional<MotionFilter> pose_graph_odometry_motion_filter;
+      // LOG(INFO) << "pose_graph odometry_motion_filter is " << trajectory_options.has_pose_graph_odometry_motion_filter();
+      // 上面会打印出0, 所以没有使用后端的里程计的motion_filter
 
-  // LOG(INFO) << "pose_graph odometry_motion_filter is " << trajectory_options.has_pose_graph_odometry_motion_filter();
-  // 上面会打印出0, 所以没有使用后端的里程计的motion_filter
+      if (trajectory_options.has_pose_graph_odometry_motion_filter()) {
+        LOG(INFO) << "Using a motion filter for adding odometry to the pose graph.";
+        pose_graph_odometry_motion_filter.emplace(
+            MotionFilter(trajectory_options.pose_graph_odometry_motion_filter()));
+      }
 
-  if (trajectory_options.has_pose_graph_odometry_motion_filter()) {
-    LOG(INFO) << "Using a motion filter for adding odometry to the pose graph.";
-    pose_graph_odometry_motion_filter.emplace(
-        MotionFilter(trajectory_options.pose_graph_odometry_motion_filter()));
-  }
+      // LocalTrajectoryBuilder 就是前端, 不带 Loop Closure 
+      // 包含了 Pose Extrapolator, Scan Matching, 生成submap 等
 
-  // LocalTrajectoryBuilder 就是前端, 不带 Loop Closure 
-  // 包含了 Pose Extrapolator, Scan Matching, 生成submap 等
+      // 3d的轨迹
+      if (options_.use_trajectory_builder_3d()) {
+        // local_trajectory_builder(前端)的初始化
+        std::unique_ptr<LocalTrajectoryBuilder3D> local_trajectory_builder;
+        if (trajectory_options.has_trajectory_builder_3d_options()) {
+          local_trajectory_builder = absl::make_unique<LocalTrajectoryBuilder3D>( // 初始化
+              trajectory_options.trajectory_builder_3d_options(),
+              SelectRangeSensorIds(expected_sensor_ids));
+        } 
 
-  // 3d的轨迹
-  if (options_.use_trajectory_builder_3d()) {
-    // local_trajectory_builder(前端)的初始化
-    std::unique_ptr<LocalTrajectoryBuilder3D> local_trajectory_builder;
-    if (trajectory_options.has_trajectory_builder_3d_options()) {
-      local_trajectory_builder = absl::make_unique<LocalTrajectoryBuilder3D>( // 初始化
-          trajectory_options.trajectory_builder_3d_options(),
-          SelectRangeSensorIds(expected_sensor_ids));
-    } 
+        /**
+         * c++11: static_cast关键字（编译时类型检查）: static_cast < type-id > ( expression )
+         * 该运算符把expression转换为type-id类型, 但没有运行时类型检查来保证转换的安全性
+          （1）用于基本数据类型之间的转换, 如把int转换为char, 把int转换成enum, 
+          （2）把空指针转换成目标类型的空指针
+          （3）把任何类型的表达式类型转换成void类型
+          （4）用于类层次结构中父类和子类之间指针和引用的转换.
 
-    /**
-     * c++11: static_cast关键字（编译时类型检查）: static_cast < type-id > ( expression )
-     * 该运算符把expression转换为type-id类型, 但没有运行时类型检查来保证转换的安全性
-      （1）用于基本数据类型之间的转换, 如把int转换为char, 把int转换成enum, 
-      （2）把空指针转换成目标类型的空指针
-      （3）把任何类型的表达式类型转换成void类型
-      （4）用于类层次结构中父类和子类之间指针和引用的转换.
+        * c++11: dynamic_cast关键字（运行时类型检查）: dynamic_cast < type-id > ( expression )
+            该运算符把 expression 转换成 type-id 类型的对象. Type-id必须是类的指针、类的引用或者void *
+            如果type-id是类指针类型, 那么expression也必须是一个指针
+            如果type-id是一个引用, 那么expression也必须是一个引用
 
-     * c++11: dynamic_cast关键字（运行时类型检查）: dynamic_cast < type-id > ( expression )
-        该运算符把 expression 转换成 type-id 类型的对象. Type-id必须是类的指针、类的引用或者void *
-        如果type-id是类指针类型, 那么expression也必须是一个指针
-        如果type-id是一个引用, 那么expression也必须是一个引用
+            dynamic_cast主要用于类层次间的上行转换（子类到父类）和下行转换（父类到子类）, 还可以用于类之间的交叉转换.
+            在类层次间进行上行转换时, dynamic_cast和static_cast的效果是一样的；
+            在进行下行转换时, dynamic_cast具有类型检查的功能, 比static_cast更安全.
+        */
+        DCHECK(dynamic_cast<PoseGraph3D*>(pose_graph_.get()));
 
-        dynamic_cast主要用于类层次间的上行转换（子类到父类）和下行转换（父类到子类）, 还可以用于类之间的交叉转换.
-        在类层次间进行上行转换时, dynamic_cast和static_cast的效果是一样的；
-        在进行下行转换时, dynamic_cast具有类型检查的功能, 比static_cast更安全.
-     */
-    DCHECK(dynamic_cast<PoseGraph3D*>(pose_graph_.get()));
-
-    // trajectory_builders_容器中存放的是智能指针，智能指针指向的类型是mapping::TrajectoryBuilderInterface>
-    // TrajectoryBuilderInterface的数据类型为CollatedTrajectoryBuilder
-    trajectory_builders_.push_back(absl::make_unique<CollatedTrajectoryBuilder>(
-        trajectory_options, 
-        sensor_collator_.get(),  // sensor::collator
-        trajectory_id,
-        expected_sensor_ids,
-        // 将3D前端与3D位姿图打包在一起, 传入CollatedTrajectoryBuilder
-        CreateGlobalTrajectoryBuilder3D(
-            std::move(local_trajectory_builder), 
+        // trajectory_builders_容器中存放的是智能指针，智能指针指向的类型是mapping::TrajectoryBuilderInterface>
+        // TrajectoryBuilderInterface的数据类型为CollatedTrajectoryBuilder
+        trajectory_builders_.push_back(absl::make_unique<CollatedTrajectoryBuilder>(
+            trajectory_options, 
+            sensor_collator_.get(),  // sensor::collator
             trajectory_id,
-            static_cast<PoseGraph3D*>(pose_graph_.get()),
-            local_slam_result_callback, 
-            pose_graph_odometry_motion_filter)));
-  } 
-  // 2d的轨迹
-  else {
-    std::unique_ptr<LocalTrajectoryBuilder2D> local_trajectory_builder;
-    if (trajectory_options.has_trajectory_builder_2d_options()) {
-      // local_trajectory_builder(前端)的初始化
-      local_trajectory_builder = absl::make_unique<LocalTrajectoryBuilder2D>(
-          trajectory_options.trajectory_builder_2d_options(),
-          SelectRangeSensorIds(expected_sensor_ids));
+            expected_sensor_ids,
+            // 将3D前端与3D位姿图打包在一起, 传入CollatedTrajectoryBuilder
+            CreateGlobalTrajectoryBuilder3D(
+                std::move(local_trajectory_builder), 
+                trajectory_id,
+                static_cast<PoseGraph3D*>(pose_graph_.get()),
+                local_slam_result_callback, 
+                pose_graph_odometry_motion_filter)));
+      } 
+      // 2d的轨迹
+      else {
+        std::unique_ptr<LocalTrajectoryBuilder2D> local_trajectory_builder;
+        if (trajectory_options.has_trajectory_builder_2d_options()) {
+          // local_trajectory_builder(前端)的初始化
+          local_trajectory_builder = absl::make_unique<LocalTrajectoryBuilder2D>(
+              trajectory_options.trajectory_builder_2d_options(),
+              SelectRangeSensorIds(expected_sensor_ids));
+        }
+
+        DCHECK(dynamic_cast<PoseGraph2D*>(pose_graph_.get()));
+
+        // CollatedTrajectoryBuilder初始化
+        // 传入的5个参数与collated_trajectory_builder.cc中的5个参数对应
+        trajectory_builders_.push_back(absl::make_unique<CollatedTrajectoryBuilder>(
+            trajectory_options, 
+            sensor_collator_.get(),    // sensor::collate
+            trajectory_id,
+            expected_sensor_ids,
+            // 将2D前端与2D位姿图打包在一起, 传入CollatedTrajectoryBuilder
+            CreateGlobalTrajectoryBuilder2D(
+                std::move(local_trajectory_builder), trajectory_id,
+                // 将pose_graph_.get()数据类型转换为PoseGraph2D*
+                static_cast<PoseGraph2D*>(pose_graph_.get()),
+                local_slam_result_callback, 
+                pose_graph_odometry_motion_filter)));
+      }
+
+      // 是否是纯定位模式, 如果是则只保存最近3个submap
+      MaybeAddPureLocalizationTrimmer(trajectory_id, trajectory_options,
+                                      pose_graph_.get());
+
+      // 如果给了初始位姿
+      if (trajectory_options.has_initial_trajectory_pose()) {
+        const auto& initial_trajectory_pose =  // 获取初始位姿
+            trajectory_options.initial_trajectory_pose();
+        
+        // 在位姿图中设置初始位姿
+        pose_graph_->SetInitialTrajectoryPose(
+            trajectory_id, initial_trajectory_pose.to_trajectory_id(),
+            transform::ToRigid3(initial_trajectory_pose.relative_pose()),
+            common::FromUniversal(initial_trajectory_pose.timestamp()));
+      }
+
+      // 保存轨迹的配置文件
+      proto::TrajectoryBuilderOptionsWithSensorIds options_with_sensor_ids_proto;
+      for (const auto& sensor_id : expected_sensor_ids) {
+        *options_with_sensor_ids_proto.add_sensor_id() = ToProto(sensor_id);
+      }
+      *options_with_sensor_ids_proto.mutable_trajectory_builder_options() =
+          trajectory_options;
+      all_trajectory_builder_options_.push_back(options_with_sensor_ids_proto);
+      
+      CHECK_EQ(trajectory_builders_.size(), all_trajectory_builder_options_.size());
+      return trajectory_id;
     }
-
-    DCHECK(dynamic_cast<PoseGraph2D*>(pose_graph_.get()));
-
-    // CollatedTrajectoryBuilder初始化
-    // 传入的5个参数与collated_trajectory_builder.cc中的5个参数对应
-    trajectory_builders_.push_back(absl::make_unique<CollatedTrajectoryBuilder>(
-        trajectory_options, 
-        sensor_collator_.get(),    // sensor::collate
-        trajectory_id,
-        expected_sensor_ids,
-        // 将2D前端与2D位姿图打包在一起, 传入CollatedTrajectoryBuilder
-        CreateGlobalTrajectoryBuilder2D(
-            std::move(local_trajectory_builder), trajectory_id,
-            // 将pose_graph_.get()数据类型转换为PoseGraph2D*
-            static_cast<PoseGraph2D*>(pose_graph_.get()),
-            local_slam_result_callback, pose_graph_odometry_motion_filter)));
-  }
-
-  // 是否是纯定位模式, 如果是则只保存最近3个submap
-  MaybeAddPureLocalizationTrimmer(trajectory_id, trajectory_options,
-                                  pose_graph_.get());
-
-  // 如果给了初始位姿
-  if (trajectory_options.has_initial_trajectory_pose()) {
-    const auto& initial_trajectory_pose =  // 获取初始位姿
-        trajectory_options.initial_trajectory_pose();
-    
-    // 在位姿图中设置初始位姿
-    pose_graph_->SetInitialTrajectoryPose(
-        trajectory_id, initial_trajectory_pose.to_trajectory_id(),
-        transform::ToRigid3(initial_trajectory_pose.relative_pose()),
-        common::FromUniversal(initial_trajectory_pose.timestamp()));
-  }
-
-  // 保存轨迹的配置文件
-  proto::TrajectoryBuilderOptionsWithSensorIds options_with_sensor_ids_proto;
-  for (const auto& sensor_id : expected_sensor_ids) {
-    *options_with_sensor_ids_proto.add_sensor_id() = ToProto(sensor_id);
-  }
-  *options_with_sensor_ids_proto.mutable_trajectory_builder_options() =
-      trajectory_options;
-  all_trajectory_builder_options_.push_back(options_with_sensor_ids_proto);
-  
-  CHECK_EQ(trajectory_builders_.size(), all_trajectory_builder_options_.size());
-  return trajectory_id;
-}
 
 // 从序列化的数据中构造一条 trajectory
 int MapBuilder::AddTrajectoryForDeserialization(

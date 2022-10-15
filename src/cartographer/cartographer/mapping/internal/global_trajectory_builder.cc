@@ -50,7 +50,8 @@ class GlobalTrajectoryBuilder : public mapping::TrajectoryBuilderInterface {
    */
   GlobalTrajectoryBuilder(
       std::unique_ptr<LocalTrajectoryBuilder> local_trajectory_builder,
-      const int trajectory_id, PoseGraph* const pose_graph,
+      const int trajectory_id, 
+      PoseGraph* const pose_graph,
       const LocalSlamResultCallback& local_slam_result_callback,
       const absl::optional<MotionFilter>& pose_graph_odometry_motion_filter)
       : trajectory_id_(trajectory_id),
@@ -78,6 +79,7 @@ class GlobalTrajectoryBuilder : public mapping::TrajectoryBuilderInterface {
 
     // 进行扫描匹配, 返回匹配后的结果
     std::unique_ptr<typename LocalTrajectoryBuilder::MatchingResult>
+
         matching_result = local_trajectory_builder_->AddRangeData(
             sensor_id, timed_point_cloud_data);
 
@@ -85,7 +87,9 @@ class GlobalTrajectoryBuilder : public mapping::TrajectoryBuilderInterface {
       // The range data has not been fully accumulated yet.
       return;
     }
+
     kLocalSlamMatchingResults->Increment();
+    // insertion_result：  TrajectoryBuilderInterface.h类中定义的结构，不是Local_builder_interface中的
     std::unique_ptr<InsertionResult> insertion_result;
 
     // matching_result->insertion_result 的类型是 LocalTrajectoryBuilder2D::InsertionResult
@@ -110,9 +114,12 @@ class GlobalTrajectoryBuilder : public mapping::TrajectoryBuilderInterface {
     }
 
     // 将结果数据传入回调函数中, 进行保存
+    // map_builder_bridge.cc中step1的 lambda表达式
     if (local_slam_result_callback_) {
       local_slam_result_callback_(
-          trajectory_id_, matching_result->time, matching_result->local_pose,
+          trajectory_id_, 
+          matching_result->time, 
+          matching_result->local_pose,
           std::move(matching_result->range_data_in_local),
           std::move(insertion_result));
     }
@@ -139,6 +146,7 @@ class GlobalTrajectoryBuilder : public mapping::TrajectoryBuilderInterface {
     // TODO(MichaelGrupp): Instead of having an optional filter on this level,
     // odometry could be marginalized between nodes in the pose graph.
     // Related issue: cartographer-project/cartographer/#1768
+    //  默认没有数据，此处不执行
     if (pose_graph_odometry_motion_filter_.has_value() &&
         pose_graph_odometry_motion_filter_.value().IsSimilar(
             odometry_data.time, odometry_data.pose)) {
@@ -184,7 +192,7 @@ class GlobalTrajectoryBuilder : public mapping::TrajectoryBuilderInterface {
 
 // 类模板不支持实参推演, 所以在类外指定模板参数的具体类型, 再进行类的实例化
 
-// 2d的完整的slam
+// 2d的完整的slam   在map_builder中构造
 std::unique_ptr<TrajectoryBuilderInterface> CreateGlobalTrajectoryBuilder2D(
     std::unique_ptr<LocalTrajectoryBuilder2D> local_trajectory_builder,
     const int trajectory_id, mapping::PoseGraph2D* const pose_graph,
@@ -207,6 +215,7 @@ std::unique_ptr<TrajectoryBuilderInterface> CreateGlobalTrajectoryBuilder3D(
   return absl::make_unique<
       GlobalTrajectoryBuilder<LocalTrajectoryBuilder3D, mapping::PoseGraph3D>>(
       std::move(local_trajectory_builder), trajectory_id, pose_graph,
+      // 
       local_slam_result_callback, pose_graph_odometry_motion_filter);
 }
 

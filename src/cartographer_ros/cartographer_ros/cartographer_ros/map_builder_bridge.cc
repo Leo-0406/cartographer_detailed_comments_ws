@@ -141,7 +141,8 @@ int MapBuilderBridge::AddTrajectory(
     const TrajectoryOptions& trajectory_options) {
   // Step: 1 开始一条新的轨迹, 返回新轨迹的id,需要传入一个函数
   const int trajectory_id = map_builder_->AddTrajectoryBuilder(
-      expected_sensor_ids, trajectory_options.trajectory_builder_options,
+      expected_sensor_ids, 
+      trajectory_options.trajectory_builder_options,
       // lambda表达式 local_slam_result_callback_
       [this](const int trajectory_id, 
              const ::cartographer::common::Time time,
@@ -287,7 +288,7 @@ cartographer_ros_msgs::SubmapList MapBuilderBridge::GetSubmapList() {
 
 // 获取local坐标系下的TrajectoryData
 std::unordered_map<int, MapBuilderBridge::LocalTrajectoryData>
-MapBuilderBridge::GetLocalTrajectoryData() {
+MapBuilderBridge::GetLocalTrajectoryData() {  // node.cc中PublishLocalTrajectoryData()中调用
   std::unordered_map<int, LocalTrajectoryData> local_trajectory_data;
   for (const auto& entry : sensor_bridges_) {
     const int trajectory_id = entry.first;
@@ -685,17 +686,21 @@ SensorBridge* MapBuilderBridge::sensor_bridge(const int trajectory_id) {
  * @param[in] range_data_in_local 扫描匹配使用的雷达数据
  */
 void MapBuilderBridge::OnLocalSlamResult(
-    const int trajectory_id, const ::cartographer::common::Time time,
+    const int trajectory_id, 
+    const ::cartographer::common::Time time,
     const Rigid3d local_pose,
     ::cartographer::sensor::RangeData range_data_in_local) {
+    // LocalSlamData数据结构在map_builder_bridge.h中声明    local_slam_data --> map<id, LocalSlamData>
   std::shared_ptr<const LocalTrajectoryData::LocalSlamData> local_slam_data =
       std::make_shared<LocalTrajectoryData::LocalSlamData>(
           LocalTrajectoryData::LocalSlamData{time, local_pose,
+                                                      // 校准后的雷达数据
                                              std::move(range_data_in_local)});
   // 保存结果数据
   absl::MutexLock lock(&mutex_);
   // 一个轨迹id只保存一个结果，优化后的新结果会对之前的结果进行覆盖，只会保存最新结果
   local_slam_data_[trajectory_id] = std::move(local_slam_data);
+  // 该数据在GetLocalTrajectoryData()中使用
 }
 
 // lx add 获取节点位姿与雷达数据
