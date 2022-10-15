@@ -185,6 +185,7 @@ void OrderedMultiQueue::Dispatch() {
     // 如果我们还没有为这个轨迹分配任何数据, 快进这个轨迹的所有队列, 直到达到一个共同的开始时间
     
     // Step: 2 获取对应轨迹id的所有数据队列中的最小共同时间戳, 作为轨迹开始的时间
+    // 所有数据队列不为空才能制定  第二步
     const common::Time common_start_time =
         GetCommonStartTime(next_queue_key.trajectory_id);
 
