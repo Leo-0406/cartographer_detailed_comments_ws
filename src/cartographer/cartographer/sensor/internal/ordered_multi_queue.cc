@@ -84,11 +84,11 @@ void OrderedMultiQueue::Add(const QueueKey& queue_key,
     return;
   }
 
-  // 向数据队列中添加数据
+  // 向数据队列中添加数据  blocking_queue阻塞队列
   it->second.queue.Push(std::move(data));
 
   // 传感器数据的分发处理
-  Dispatch();
+  Dispatch(); // 很重要
 }
 
 // 将所有处于未完成状态的数据队列标记为完成状态
@@ -124,11 +124,15 @@ void OrderedMultiQueue::Dispatch() {
   while (true) {
     /*
       queues_: 
+       trajectory_id: 0;  key是一个list,里面的数字代表时间戳
         (0, scan): {      4,     }
         (0, imu):  {1,  3,   5,  }
         (0, odom): {  2,       6,}
     */
-    const Data* next_data = nullptr;
+    // note: const *ptr: 底层const,表示指针指向的对象是一个常量。可以改变指针的指向，不可以改变地址中的值
+    // note: * const ptr: 顶层const，表示指针本身是一个常量。不可以改变指向，可以改变地址中的值
+    // const修饰指针，指针常量，指针指向的地址可以改变，地址里面的内容不可以改变
+    const Data* next_data = nullptr; 
     Queue* next_queue = nullptr;
     QueueKey next_queue_key;
 
@@ -138,15 +142,19 @@ void OrderedMultiQueue::Dispatch() {
       // c++11: auto*(指针类型说明符), auto&(引用类型说明符), auto &&(右值引用)
 
       // 获取当前队列中时间最老的一个的一个数据
+      // it为成员: std::map<QueueKey, Queue> queues_，  .queue表示成员Queue中的queue(阻塞队列)
+      // .peek()  取出双端队列的第一个原始指针
       const auto* data = it->second.queue.Peek<Data>();
+      // 可以改变指针的指向，地址中的值不能够被改变
 
-      if (data == nullptr) {
+      if (data == nullptr) { // 队列为空的时候 数据就为空
         // 如果队列已经处于finished状态了, 就删掉这个队列
         if (it->second.finished) {
           queues_.erase(it++);
           continue;
         }
         // 退出条件1: 某个话题的数据队列为空同时又不是完成状态, 就先退出, 发布log并标记为阻塞者
+        // 说明消费者把话题的数据队列都用完了/ 话题数据还未到
         CannotMakeProgress(it->first);
         return;
       }
