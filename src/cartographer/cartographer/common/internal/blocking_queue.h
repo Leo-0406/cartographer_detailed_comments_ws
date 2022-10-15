@@ -46,13 +46,14 @@ namespace common {
   复用：通过将生产者类和消费者类独立开来, 可以对生产者类和消费者类进行独立的复用与扩展
  */
 
+// 类模板
 template <typename T>
 class BlockingQueue {
  public:
   static constexpr size_t kInfiniteQueueSize = 0;
 
   // Constructs a blocking queue with infinite queue size.
-  // 构造一个具有无限队列大小的阻塞队列
+  // 构造一个具有无限队列大小的阻塞队列，默认构造函数
   BlockingQueue() : BlockingQueue(kInfiniteQueueSize) {}
 
   BlockingQueue(const BlockingQueue&) = delete;
@@ -64,6 +65,7 @@ class BlockingQueue {
 
   // Pushes a value onto the queue. Blocks if the queue is full.
   // 将值压入队列. 如果队列已满, 则阻塞
+  // Push:   collator ---> AddSendoData()调用queue_.Add() ---> it->second.queue.Push() (ordered_multi_queue.cc中)
   void Push(T t) {
     // 首先定义判断函数
     const auto predicate = [this]() EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
@@ -77,7 +79,7 @@ class BlockingQueue {
     absl::MutexLock lock(&mutex_);
     mutex_.Await(absl::Condition(&predicate));
 
-    // 将数据加入队列, 移动而非拷贝
+    // 将数据加入双端队列, 移动而非拷贝
     deque_.push_back(std::move(t));
   }
 
@@ -100,7 +102,7 @@ class BlockingQueue {
   // 取出数据, 如果数据队列为空则进行等待
   T Pop() {
     const auto predicate = [this]() EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
-      return !QueueEmptyCondition();
+      return !QueueEmptyCondition(); // 队列为空返回true
     };
     // 等待直到数据队列中至少有一个数据
     absl::MutexLock lock(&mutex_);
@@ -152,7 +154,7 @@ class BlockingQueue {
     if (deque_.empty()) {
       return nullptr;
     }
-    return deque_.front().get();
+    return deque_.front().get();  // 返回第一个值的原始指针
   }
 
   // Returns the number of items currently in the queue.
