@@ -102,6 +102,7 @@ class LocalTrajectoryBuilder2D {
   void InitializeExtrapolator(common::Time time);
 
   const proto::LocalTrajectoryBuilderOptions2D options_;
+  // 只有两个子图的一个vector,雷达数据不断的传入这两个子图
   ActiveSubmaps2D active_submaps_;
 
   MotionFilter motion_filter_;
@@ -118,6 +119,7 @@ class LocalTrajectoryBuilder2D {
   absl::optional<double> last_thread_cpu_time_seconds_;
   absl::optional<common::Time> last_sensor_time_;
 
+  // 雷达数据的时间同步
   RangeDataCollator range_data_collator_;
 };
 

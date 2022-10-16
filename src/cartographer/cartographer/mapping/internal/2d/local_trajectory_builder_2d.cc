@@ -42,9 +42,9 @@ static auto* kScanMatcherResidualAngleMetric = metrics::Histogram::Null();
  * @param[in] expected_range_sensor_ids 所有range类型的话题
  */
 LocalTrajectoryBuilder2D::LocalTrajectoryBuilder2D(
-    const proto::LocalTrajectoryBuilderOptions2D& options,
+    const proto::LocalTrajectoryBuilderOptions2D& options,  // protobuf格式的配置文件
     const std::vector<std::string>& expected_range_sensor_ids)
-    : options_(options),
+    : options_(options),   // options配置文件来源：trajectory_builder_2d.lua
       active_submaps_(options.submaps_options()),
       motion_filter_(options_.motion_filter_options()),
       real_time_correlative_scan_matcher_(
@@ -142,7 +142,7 @@ LocalTrajectoryBuilder2D::AddRangeData(
     const sensor::TimedPointCloudData& unsynchronized_data) {
   
   // Step: 1 进行多个雷达点云数据的时间同步, 点云的坐标是相对于tracking_frame的
-  auto synchronized_data =
+  auto synchronized_data =                          // 未同步的点云数据
       range_data_collator_.AddRangeData(sensor_id, unsynchronized_data);
   if (synchronized_data.ranges.empty()) {
     LOG(INFO) << "Range data collator filling buffer.";

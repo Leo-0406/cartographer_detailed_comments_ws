@@ -48,7 +48,7 @@ sensor::TimedPointCloudOriginData RangeDataCollator::AddRangeData(
   if (id_to_pending_data_.count(sensor_id) != 0) {
     // current_end_为上一次时间同步的结束时间
     // current_start_为本次时间同步的开始时间
-    current_start_ = current_end_;
+    current_start_ = current_end_;  //使用上一次结束时间作为本次开始时间，保证时间段连续
     // When we have two messages of the same sensor, move forward the older of
     // the two (do not send out current).
     // 本次时间同步的结束时间为这帧点云数据的结束时间
@@ -64,7 +64,7 @@ sensor::TimedPointCloudOriginData RangeDataCollator::AddRangeData(
 
   // 等到range数据的话题都到来之后再进行处理
   if (expected_sensor_ids_.size() != id_to_pending_data_.size()) {
-    return {};
+    return {};   // 进行等待
   }
 
   current_start_ = current_end_;
@@ -92,9 +92,12 @@ sensor::TimedPointCloudOriginData RangeDataCollator::CropAndMerge() {
     const sensor::TimedPointCloud& ranges = it->second.ranges;
     const std::vector<float>& intensities = it->second.intensities;
 
-    // 找到点云中 最后一个时间戳小于current_start_的点的索引
+    // 找到点云中 最后一个时间戳小于等于current_start_的点的索引
     auto overlap_begin = ranges.begin();
     while (overlap_begin < ranges.end() &&
+          //data.time点云数据TimedPointCloudData中最后一个点的时间
+          // + common ...  .time为相对时间（负数）   
+          // TimedPointCloud(后者的别名)---> TimedRangefinderPoint--->time
            data.time + common::FromSeconds((*overlap_begin).time) <
                current_start_) {
       ++overlap_begin;
@@ -131,7 +134,7 @@ sensor::TimedPointCloudOriginData RangeDataCollator::CropAndMerge() {
       result.ranges.reserve(result.ranges.size() +
                             std::distance(overlap_begin, overlap_end));
       
-      // 填充数据
+      // 填充数据(点)
       for (auto overlap_it = overlap_begin; overlap_it != overlap_end;
            ++overlap_it, ++intensities_overlap_it) {
         sensor::TimedPointCloudOriginData::RangeMeasurement point{
@@ -159,7 +162,7 @@ sensor::TimedPointCloudOriginData RangeDataCollator::CropAndMerge() {
           intensities.begin() + (overlap_end - ranges.begin());
       // 将用了的点删除, 这里的赋值是拷贝
       data = sensor::TimedPointCloudData{
-          data.time, data.origin,
+          data.time, data.origin,  // 未用的点云(范围)，重新赋值给data，相当于做了一个更新
           sensor::TimedPointCloud(overlap_end, ranges.end()),
           std::vector<float>(intensities_overlap_end, intensities.end())};
       ++it;
