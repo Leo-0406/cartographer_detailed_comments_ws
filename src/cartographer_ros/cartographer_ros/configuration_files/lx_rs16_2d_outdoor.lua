@@ -53,7 +53,7 @@ MAP_BUILDER.use_trajectory_builder_2d = true
 TRAJECTORY_BUILDER_2D.use_imu_data = true
 TRAJECTORY_BUILDER_2D.min_range = 0.3
 TRAJECTORY_BUILDER_2D.max_range = 100.
-TRAJECTORY_BUILDER_2D.min_z = 0.2
+TRAJECTORY_BUILDER_2D.min_z = 0.2            -- 单线雷达要设置为0,多线雷达需要过滤
 --TRAJECTORY_BUILDER_2D.max_z = 1.4
 --TRAJECTORY_BUILDER_2D.voxel_filter_size = 0.02
 

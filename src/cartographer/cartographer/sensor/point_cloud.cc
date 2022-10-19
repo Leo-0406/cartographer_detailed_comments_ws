@@ -66,11 +66,14 @@ void PointCloud::push_back(PointCloud::PointType value) {
  */
 PointCloud TransformPointCloud(const PointCloud& point_cloud,
                                const transform::Rigid3f& transform) {
+  // 生成坐标点                             
   std::vector<RangefinderPoint> points;
+  // 申请空间
   points.reserve(point_cloud.size());
   for (const RangefinderPoint& point : point_cloud.points()) {
-    points.emplace_back(transform * point);
+    points.emplace_back(transform * point);// 对点进行坐标变换
   }
+  // 与强度一起  新生成拷贝的点云
   return PointCloud(points, point_cloud.intensities());
 }
 
@@ -98,7 +101,7 @@ TimedPointCloud TransformTimedPointCloud(const TimedPointCloud& point_cloud,
  * @param[in] point_cloud 输入的点云
  * @param[in] min_z 最小的z
  * @param[in] max_z 最大的z
- * @return PointCloud 裁剪之后的点云 拷贝
+ * @return PointCloud 裁剪之后的点云 返回拷贝
  */
 PointCloud CropPointCloud(const PointCloud& point_cloud, const float min_z,
                           const float max_z) {

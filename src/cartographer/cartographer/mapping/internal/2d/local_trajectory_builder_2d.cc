@@ -63,11 +63,12 @@ LocalTrajectoryBuilder2D::~LocalTrajectoryBuilder2D() {}
  */
 sensor::RangeData
 LocalTrajectoryBuilder2D::TransformToGravityAlignedFrameAndFilter(
+                              // 传入的坐标变换
     const transform::Rigid3f& transform_to_gravity_aligned_frame,
     const sensor::RangeData& range_data) const {
   // Step: 5 将原点位于机器人当前位姿处的点云 转成 原点位于local坐标系原点处的点云, 再进行z轴上的过滤
   const sensor::RangeData cropped =
-      sensor::CropRangeData(sensor::TransformRangeData(
+      sensor::CropRangeData(sensor::TransformRangeData(//将点云从local_slam坐标系转换到坐标系原点处
                                 range_data, transform_to_gravity_aligned_frame),
                             options_.min_z(), options_.max_z()); // param: min_z max_z
   // Step: 6 对点云进行体素滤波
@@ -165,6 +166,7 @@ LocalTrajectoryBuilder2D::AddRangeData(
 
   CHECK(!synchronized_data.ranges.empty());
   // TODO(gaschler): Check if this can strictly be 0.
+  // 检查点云最后一个点的时间是否小于0
   CHECK_LE(synchronized_data.ranges.back().point_time.time, 0.f);
 
   // 计算第一个点的时间
@@ -176,8 +178,9 @@ LocalTrajectoryBuilder2D::AddRangeData(
     LOG(INFO) << "Extrapolator is still initializing.";
     return nullptr;
   }
-
+  // 坐标变换
   std::vector<transform::Rigid3f> range_data_poses;
+  // 空间申请
   range_data_poses.reserve(synchronized_data.ranges.size());
   bool warned = false;
 
@@ -200,7 +203,7 @@ LocalTrajectoryBuilder2D::AddRangeData(
     range_data_poses.push_back(
         extrapolator_->ExtrapolatePose(time_point).cast<float>());
   }
-
+    // num_accumulated_成员变量，初始化的时候为0
   if (num_accumulated_ == 0) {
     // 'accumulated_range_data_.origin' is uninitialized until the last
     // accumulation.
@@ -214,20 +217,35 @@ LocalTrajectoryBuilder2D::AddRangeData(
     // 获取在tracking frame 下点的坐标
     const sensor::TimedRangefinderPoint& hit =
         synchronized_data.ranges[i].point_time;
-    // 将点云的origins坐标转到 local slam 坐标系下
+    // 将点云的origins坐标转到 local slam 坐标系下（坐标系原点也转到local slam下）
     const Eigen::Vector3f origin_in_local =
+        // 坐标变换，根据不同的时间戳预测出来的  step2
         range_data_poses[i] *
+        // 通过容器保存某一点对应的坐标系原点，通过索引就能找到该点对应的坐标系原点，
         synchronized_data.origins.at(synchronized_data.ranges[i].origin_index);
-    
+
+
+    /*
+    map_frame ="map"为 cartographer中使用的全局坐标系，也是位姿的父坐标系，应当保持默认。
+    而tracking_frame="base_link"，"base_link"意为机器人中心坐标系，这个可以做修改。
+        tracking_frame指的是由SLAM算法追踪的ROS坐标系的ID，如果在使用IMU的情况下，也可以（也最好）替换成“imu_link”。
+    published_frame="odom"，这个也不固定。这个可以被设置为odom，意为里程计坐标系，也可以被设置为base_link。
+        而odom_frame不见得启用，只有在下一个选项provide_odom_frame为true时才启用，这个一般被设为odom，也是里程计的坐标系的名称。
+    而provide_odom_frame的作用是，使得坐标系之间经过如下转换以后再发布：published_frame->odom_frame->map_frame。
+        如果不是true，则是 published_frame ->map_frame进行发布。
+    */
     // Step: 3 运动畸变的去除, 将相对于tracking_frame的hit坐标 转成 local坐标系下的坐标
     sensor::RangefinderPoint hit_in_local =
+        // 当前点对应时间的坐标变换
         range_data_poses[i] * sensor::ToRangefinderPoint(hit);
     
-    // 计算这个点的距离, 这里用的是去畸变之后的点的距离
+    // 计算这个点的距离, 这里用的是去畸变之后的点的距离(运动畸变--->在一帧雷达数据时间段内，距离变化导致）
+    // 旋转导致的畸变比较明显，平移相对较小
     const Eigen::Vector3f delta = hit_in_local.position - origin_in_local;
-    const float range = delta.norm();
+    const float range = delta.norm();// 取模长
     
     // param: min_range max_range
+    // trajectory_builde_ed.lua中的 min_range  &&  max_range  (参数，可以调整)
     if (range >= options_.min_range()) {
       if (range <= options_.max_range()) {
         // 在这里可以看到, returns里保存的是local slam下的去畸变之后的点的坐标
@@ -238,6 +256,7 @@ LocalTrajectoryBuilder2D::AddRangeData(
             origin_in_local +
             // param: missing_data_ray_length, 是个比例, 不是距离
             options_.missing_data_ray_length() / range * delta;
+                            // range_data.h中定义的结构
         accumulated_range_data_.misses.push_back(hit_in_local);
       }
     }
@@ -246,7 +265,7 @@ LocalTrajectoryBuilder2D::AddRangeData(
   // 有一帧有效的数据了
   ++num_accumulated_;
 
-  // param: num_accumulated_range_data 几帧有效的点云数据进行一次扫描匹配
+  // param: num_accumulated_range_data 几帧有效的点云数据进行一次扫描匹配，默认值设置为1。
   if (num_accumulated_ >= options_.num_accumulated_range_data()) {
     // 计算2次有效点云数据的的时间差
     const common::Time current_sensor_time = synchronized_data.time;
@@ -259,20 +278,21 @@ LocalTrajectoryBuilder2D::AddRangeData(
     // 重置变量
     num_accumulated_ = 0;
 
-    // 获取机器人当前姿态
+    // 获取机器人当前姿态（相对于启动catrographer的姿态）
     const transform::Rigid3d gravity_alignment = transform::Rigid3d::Rotation(
         extrapolator_->EstimateGravityOrientation(time));
 
     // TODO(gaschler): This assumes that 'range_data_poses.back()' is at time
     // 'time'.
-    // 以最后一个点的时间戳估计出的坐标为这帧数据的原点
+    // 以最后一个点的时间戳估计出的坐标为这帧数据的原点，range_data_poses是估计出来的，每次重新启动的origin都不固定
     accumulated_range_data_.origin = range_data_poses.back().translation();
     
     return AddAccumulatedRangeData(
         time,
         // 将点云变换到local原点处, 且姿态为0
         TransformToGravityAlignedFrameAndFilter(
-            gravity_alignment.cast<float>() * range_data_poses.back().inverse(),
+          //重力对齐姿态       *         最后一个点的pose变换到local坐标系原点的坐标变换
+            gravity_alignment.cast<float>() * range_data_poses.back().inverse(),// inverse() 返回平移和旋转
             accumulated_range_data_),
         gravity_alignment, sensor_duration);
   }

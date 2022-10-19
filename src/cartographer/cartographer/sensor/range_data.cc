@@ -22,7 +22,7 @@
 namespace cartographer {
 namespace sensor {
 
-// 根据给定的坐标变换, 分别对origin, returns, misses做变换, 拷贝
+// 根据给定的坐标变换, 分别对origin, returns, misses做变换（传入引用）, 拷贝（返回拷贝）
 RangeData TransformRangeData(const RangeData& range_data,
                              const transform::Rigid3f& transform) {
   return RangeData{
@@ -34,7 +34,7 @@ RangeData TransformRangeData(const RangeData& range_data,
 
 /**
  * @brief 对输入的点云进行z轴上的过滤
- * 
+ *    
  * @param[in] range_data 原始点云数据
  * @param[in] min_z 最小的z坐标
  * @param[in] max_z 最大的z坐标
