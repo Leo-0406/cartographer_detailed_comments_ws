@@ -89,13 +89,14 @@ void ImuTracker::AddImuLinearAccelerationObservation(
 
   // 指数来确定权重, 因为有噪声的存在, 时间差越大, 当前的线性加速度的权重越大
   // 这里的gravity_vector_改成线性加速度更清晰一些
-  gravity_vector_ =
+  gravity_vector_ =// 确定选择依赖的对象，权重越大，就越相信谁
       (1. - alpha) * gravity_vector_ + alpha * imu_linear_acceleration;
       
   // Change the 'orientation_' so that it agrees with the current
   // 'gravity_vector_'.
   // Step: 4 求得 线性加速度的值 与 由上一时刻姿态求出的线性加速度 间的旋转量
-  const Eigen::Quaterniond rotation = FromTwoVectors(
+  const Eigen::Quaterniond rotation = FromTwoVectors(// 当前状态和之前的状态求出旋转，作为一个校准量
+    // 线性加速度   当前机器人的姿态，求共轭代替求逆（相反的旋转） * 【0，0，1】向量， 得到之前状态的gravity_vector_线性加速度的值   
       gravity_vector_, orientation_.conjugate() * Eigen::Vector3d::UnitZ());
 
   // Step: 5 使用这个旋转量来校准当前的姿态
@@ -110,7 +111,7 @@ void ImuTracker::AddImuLinearAccelerationObservation(
 // 更新角速度
 void ImuTracker::AddImuAngularVelocityObservation(
     const Eigen::Vector3d& imu_angular_velocity) {
-  imu_angular_velocity_ = imu_angular_velocity;
+  imu_angular_velocity_ = imu_angular_velocity;  // 直接赋值给成员变量
 }
 
 }  // namespace mapping

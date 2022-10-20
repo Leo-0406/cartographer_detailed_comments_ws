@@ -83,13 +83,13 @@ class PoseExtrapolator : public PoseExtrapolatorInterface {
     common::Time time;
     transform::Rigid3d pose;
   };
-  std::deque<TimedPose> timed_pose_queue_;
-  // 线速度有2种计算途径
-  Eigen::Vector3d linear_velocity_from_poses_ = Eigen::Vector3d::Zero();
-  Eigen::Vector3d angular_velocity_from_poses_ = Eigen::Vector3d::Zero();
+  std::deque<TimedPose> timed_pose_queue_; // 队列数据的个数，最少是两个
+  // 线速度有2种计算途径，  只在添加位姿时更新
+  Eigen::Vector3d linear_velocity_from_poses_ = Eigen::Vector3d::Zero();// 用于位姿预测时，不使用里程计数据时的平移量预测
+  Eigen::Vector3d angular_velocity_from_poses_ = Eigen::Vector3d::Zero(); // 用于不使用里程计数据时角速度的更新
 
   const double gravity_time_constant_;
-  std::deque<sensor::ImuData> imu_data_;
+  std::deque<sensor::ImuData> imu_data_; //传感器队列数据的个数，最少是1个
 
   // c++11: std::unique_ptr 是独享被管理对象指针所有权的智能指针
   // 它无法复制到其他 unique_ptr, 也无法通过值传递到函数,也无法用于需要副本的任何标准模板库 (STL) 算法
@@ -101,9 +101,10 @@ class PoseExtrapolator : public PoseExtrapolatorInterface {
   std::unique_ptr<ImuTracker> extrapolation_imu_tracker_; // 用于预测姿态的ImuTracker
   TimedPose cached_extrapolated_pose_;
 
-  std::deque<sensor::OdometryData> odometry_data_;
-  Eigen::Vector3d linear_velocity_from_odometry_ = Eigen::Vector3d::Zero();
-  Eigen::Vector3d angular_velocity_from_odometry_ = Eigen::Vector3d::Zero();
+  std::deque<sensor::OdometryData> odometry_data_;  // 队列数据的个数最少是2个，如果小于2，就意味着不使用里程计
+  // 只在添加里程计数据时更新，
+  Eigen::Vector3d linear_velocity_from_odometry_ = Eigen::Vector3d::Zero(); // 用于位姿预测时的平移量预测
+  Eigen::Vector3d angular_velocity_from_odometry_ = Eigen::Vector3d::Zero(); // 用于不使用imu数据时角速度的更新
 };
 
 }  // namespace mapping

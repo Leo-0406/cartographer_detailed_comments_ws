@@ -61,6 +61,7 @@ std::unique_ptr<PoseExtrapolator> PoseExtrapolator::InitializeWithImu(
 // 返回上次校准位姿的时间
 common::Time PoseExtrapolator::GetLastPoseTime() const {
   // 如果尚未添加任何位姿, 则返回Time::min()
+  // timed_pose_queue_---> 校准扫描匹配后的位姿的队列
   if (timed_pose_queue_.empty()) {
     return common::Time::min();
   }
@@ -76,6 +77,7 @@ common::Time PoseExtrapolator::GetLastExtrapolatedTime() const {
 }
 
 // 将扫描匹配后的pose加入到pose队列中,计算线速度与角速度,并将imu_tracker_的状态更新到time时刻
+// 通过imu和里程计预测后需要进行校准，通过scan-match的pose校准
 void PoseExtrapolator::AddPose(const common::Time time,
                                const transform::Rigid3d& pose) {
   // 如果imu_tracker_没有初始化就先进行初始化
@@ -116,11 +118,12 @@ void PoseExtrapolator::AddPose(const common::Time time,
 }
 
 // 向imu数据队列中添加imu数据,并进行数据队列的修剪
+// AddImuData ---> local_trajectory_builder_2d.cc ---> global_trajectory_builder.cc   逐层调用
 void PoseExtrapolator::AddImuData(const sensor::ImuData& imu_data) {
   CHECK(timed_pose_queue_.empty() ||
         imu_data.time >= timed_pose_queue_.back().time);
   imu_data_.push_back(imu_data);
-  TrimImuData();
+  TrimImuData(); // 对imu数据进行裁剪，该数据存储于双端队列中
 }
 
 // 向odom数据队列中添加odom数据,并进行数据队列的修剪,并计算角速度与线速度
@@ -152,21 +155,22 @@ void PoseExtrapolator::AddOdometryData(
   // 两个位姿间的旋转量除以时间得到 tracking frame 的角速度
   angular_velocity_from_odometry_ =
       transform::RotationQuaternionToAngleAxisVector(
-          odometry_pose_delta.rotation()) /
-      odometry_time_delta;
+          odometry_pose_delta.rotation()) / odometry_time_delta;
   if (timed_pose_queue_.empty()) {
     return;
   }
-  // 平移量除以时间得到 tracking frame 的线速度, 只在x方向有数值
+  // 平移量除以时间得到 tracking frame 的线速度, 只在x方向有数值（机器人时）
   const Eigen::Vector3d
       linear_velocity_in_tracking_frame_at_newest_odometry_time =
           odometry_pose_delta.translation() / odometry_time_delta;
 
+  // ?:这里不是太明白为什么要乘以变化量？
   // 根据位姿队列中最后一个位姿 乘以 上次添加位姿时的姿态预测到time时刻的姿态变化量
   // 得到预测的 最新里程计数据时刻 tracking frame 在 local 坐标系下的姿态
   const Eigen::Quaterniond orientation_at_newest_odometry_time =
       timed_pose_queue_.back().pose.rotation() *
       ExtrapolateRotation(odometry_data_newest.time,
+                          // 里程计姿态预测，时间范围是从imu_tracker到time
                           odometry_imu_tracker_.get());
   // 将tracking frame的线速度进行旋转, 得到 local 坐标系下 tracking frame 的线速度
   linear_velocity_from_odometry_ =
