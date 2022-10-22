@@ -157,7 +157,7 @@ LocalTrajectoryBuilder2D::AddRangeData(
     InitializeExtrapolator(time);
   }
 
-  if (extrapolator_ == nullptr) {
+  if (extrapolator_ == nullptr) { // 位姿预测器的使用，如果没初始化，就先进行初始化，初始化后就AddPose()
     // Until we've initialized the extrapolator with our first IMU message, we
     // cannot compute the orientation of the rangefinder.
     LOG(INFO) << "Extrapolator not yet initialized.";
@@ -324,7 +324,7 @@ LocalTrajectoryBuilder2D::AddAccumulatedRangeData(
   // Computes a gravity aligned pose prediction.
   // 进行位姿的预测, 先验位姿
   const transform::Rigid3d non_gravity_aligned_pose_prediction =
-      extrapolator_->ExtrapolatePose(time);
+      extrapolator_->ExtrapolatePose(time); // 获取当前时刻位姿的预测
   // 将三维位姿先旋转到姿态为0, 再取xy坐标将三维位姿转成二维位姿
   const transform::Rigid2d pose_prediction = transform::Project2D(
       non_gravity_aligned_pose_prediction * gravity_alignment.inverse());

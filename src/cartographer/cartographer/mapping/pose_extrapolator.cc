@@ -111,7 +111,7 @@ void PoseExtrapolator::AddPose(const common::Time time,
   TrimImuData();
   TrimOdometryData();
 
-  // 用于根据里程计数据计算线速度时姿态的预测
+  // 用于根据里程计数据计算线速度时姿态的预测    使用拷贝构造函数新建连个ImuTracker,与107行的状态一致
   odometry_imu_tracker_ = absl::make_unique<ImuTracker>(*imu_tracker_);
   // 用于位姿预测时的姿态预测
   extrapolation_imu_tracker_ = absl::make_unique<ImuTracker>(*imu_tracker_);
@@ -277,10 +277,11 @@ void PoseExtrapolator::AdvanceImuTracker(const common::Time time,
     
     // 预测当前时刻的姿态与重力方向
     imu_tracker->Advance(time);
-    // 使用 假的重力数据对加速度的测量进行更新
+    // 使用 假的重力数据对加速度的测量进行更新                       【0，0，1】
     imu_tracker->AddImuLinearAccelerationObservation(Eigen::Vector3d::UnitZ());
     // 只能依靠其他方式得到的角速度进行测量值的更新
     imu_tracker->AddImuAngularVelocityObservation(
+        // 不使用里程计数据的时候，才小于2，选择使用pose的数据进行更新
         odometry_data_.size() < 2 ? angular_velocity_from_poses_
                                   : angular_velocity_from_odometry_);
     return;
