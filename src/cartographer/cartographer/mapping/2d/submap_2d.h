@@ -103,6 +103,7 @@ class ActiveSubmaps2D {
   void AddSubmap(const Eigen::Vector2f& origin);
 
   const proto::SubmapsOptions2D options_;
+  // 前端后端均会使用，因此使用的是share_ptr的智能指针，进行数据传递
   std::vector<std::shared_ptr<Submap2D>> submaps_;
   std::unique_ptr<RangeDataInserterInterface> range_data_inserter_;
   

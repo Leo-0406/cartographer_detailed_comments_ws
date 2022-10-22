@@ -177,6 +177,8 @@ void Submap2D::Finish() {
   set_insertion_finished(true);
 }
 
+
+
 /********** ActiveSubmaps2D *****************/
 
 // ActiveSubmaps2D构造函数
@@ -233,7 +235,8 @@ std::unique_ptr<GridInterface> ActiveSubmaps2D::CreateGrid(
     const Eigen::Vector2f& origin) {
   // 地图初始大小,100个栅格
   constexpr int kInitialSubmapSize = 100;
-  float resolution = options_.grid_options_2d().resolution(); // param: grid_options_2d.resolution
+  // param: grid_options_2d.resolution，in trajectory_builder_2d.lua，可以调节地图生成精度
+  float resolution = options_.grid_options_2d().resolution(); 
   switch (options_.grid_options_2d().grid_type()) {
     // 概率栅格地图
     case proto::GridOptions2D::PROBABILITY_GRID:
@@ -243,6 +246,7 @@ std::unique_ptr<GridInterface> ActiveSubmaps2D::CreateGrid(
                     origin.cast<double>() + 0.5 * kInitialSubmapSize *
                                                 resolution *
                                                 Eigen::Vector2d::Ones(),
+                    // 新建x和y都是100栅格的地图
                     CellLimits(kInitialSubmapSize, kInitialSubmapSize)),
           &conversion_tables_);
     // tsdf地图
@@ -277,7 +281,7 @@ void ActiveSubmaps2D::AddSubmap(const Eigen::Vector2f& origin) {
   }
   // 新建一个子图, 并保存指向新子图的智能指针
   submaps_.push_back(absl::make_unique<Submap2D>(
-      origin,
+      origin, // 传入雷达数据原点
       std::unique_ptr<Grid2D>(
           static_cast<Grid2D*>(CreateGrid(origin).release())),
       &conversion_tables_));

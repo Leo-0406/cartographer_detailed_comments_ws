@@ -58,7 +58,7 @@ class MapLimits {
    * @brief 构造函数
    * 
    * @param[in] resolution 地图分辨率
-   * @param[in] max 左上角的坐标为地图坐标的最大值
+   * @param[in] max 左上角的坐标为地图坐标的最大值，不是像素坐标
    * @param[in] cell_limits 地图x方向与y方向的格子数
    */
   MapLimits(const double resolution, const Eigen::Vector2d& max,
@@ -94,14 +94,16 @@ class MapLimits {
     // Index values are row major and the top left has Eigen::Array2i::Zero()
     // and contains (centered_max_x, centered_max_y). We need to flip and
     // rotate.
-    return Eigen::Array2i(
+    return Eigen::Array2i(   // 地图的y对应像素的x，因此转换到像素坐标时，像素的x方向采用地图坐标系中的y.  y同理
+                          // 除以分辨率得到栅格数量
         common::RoundToInt((max_.y() - point.y()) / resolution_ - 0.5),
         common::RoundToInt((max_.x() - point.x()) / resolution_ - 0.5));
   }
 
   // Returns the center of the cell at 'cell_index'.
-  // 根据像素索引算物理坐标
+  // 根据像素索引算物理坐标      
   Eigen::Vector2f GetCellCenter(const Eigen::Array2i cell_index) const {
+      // cell_index[1]代表像素坐标系中的y,转换到地图坐标系就对应x
     return {max_.x() - resolution() * (cell_index[1] + 0.5),
             max_.y() - resolution() * (cell_index[0] + 0.5)};
   }

@@ -89,7 +89,8 @@ LocalTrajectoryBuilder2D::TransformToGravityAlignedFrameAndFilter(
 std::unique_ptr<transform::Rigid2d> LocalTrajectoryBuilder2D::ScanMatch(
     const common::Time time, const transform::Rigid2d& pose_prediction,
     const sensor::PointCloud& filtered_gravity_aligned_point_cloud) {
-  if (active_submaps_.submaps().empty()) {
+  if (active_submaps_.submaps().empty()) {  
+    // 第1个雷达数据到来时，无地图，无法进行扫描匹配，会直接返回先验位姿，位姿推测器估计而来
     return absl::make_unique<transform::Rigid2d>(pose_prediction);
   }
   // 使用active_submaps_的第一个子图进行匹配
@@ -468,7 +469,7 @@ void LocalTrajectoryBuilder2D::InitializeExtrapolator(const common::Time time) {
           .constant_velocity()
           .imu_gravity_time_constant()); // 10
   // 添加初始位姿
-  extrapolator_->AddPose(time, transform::Rigid3d::Identity());
+  extrapolator_->AddPose(time, transform::Rigid3d::Identity());// 坐标000，旋转也是000的初始位姿
 }
 
 void LocalTrajectoryBuilder2D::RegisterMetrics(
