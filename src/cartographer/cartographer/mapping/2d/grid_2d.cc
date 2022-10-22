@@ -65,16 +65,19 @@ proto::GridOptions2D CreateGridOptions2D(
  * @param[in] max_correspondence_cost 最大correspondence_cost 0.9
  * @param[in] conversion_tables 传入的转换表指针
  */
-Grid2D::Grid2D(const MapLimits& limits, float min_correspondence_cost,
-               float max_correspondence_cost,
-               ValueConversionTables* conversion_tables)
+Grid2D::Grid2D(const MapLimits& limits, 
+                float min_correspondence_cost,
+                float max_correspondence_cost,
+                ValueConversionTables* conversion_tables)
     : limits_(limits),
-      correspondence_cost_cells_(
+      correspondence_cost_cells_(// 地图栅格值初始化 数量：x*y  每个栅格为0
           limits_.cell_limits().num_x_cells * limits_.cell_limits().num_y_cells,
           kUnknownCorrespondenceValue),  // 0
       min_correspondence_cost_(min_correspondence_cost),  // 0.1
       max_correspondence_cost_(max_correspondence_cost),  // 0.9
-      // 新建转换表
+
+      // 新建转换表，通过GetConversionTableh()函数返回新的转换表，用作对成员变量赋值
+      // conversion_tables调用传入的指针，通过GetConversionTable()计算，使得conve-指针里面的值也有一个初始化转换表
       value_to_correspondence_cost_table_(conversion_tables->GetConversionTable(
           max_correspondence_cost, min_correspondence_cost,
           max_correspondence_cost)) {
